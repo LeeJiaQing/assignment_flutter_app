@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'features/home/home_screen.dart';
+import 'cart_provider.dart';
 
 void main() {
-  runApp(const MainApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => CartProvider(),
+      child: const MainApp(), // every child under MainApp class can use CartProvider
+    ),
+  );
 }
 
 class MainApp extends StatelessWidget {
@@ -9,12 +17,10 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
-        ),
-      ),
+    return MaterialApp(
+      title: 'CourtNow',
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),),
+      home: const HomePage(title: 'CourtNow Home Page'),
     );
   }
 }
