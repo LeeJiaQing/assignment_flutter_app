@@ -1,5 +1,5 @@
 name: assignment
-description: "A new Flutter project."
+description: "CourtNow app"
 publish_to: 'none'
 version: 0.1.0
 
@@ -18,3 +18,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/admin/
+    - assets/images/booking/
+    - assets/images/facility/
+    - assets/images/home/
+    - assets/images/notification/
+    - assets/images/party/
+    - assets/images/profile/
