@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'features/home/home_screen.dart';
-import 'cart_provider.dart';
+import 'features/booking/booking_provider.dart';
+import 'features/home/main_navigation.dart';
 
 void main() {
   runApp(
     ChangeNotifierProvider(
-      create: (context) => CartProvider(),
+      create: (context) => BookingProvider(),
       child: const MainApp(), // every child under MainApp class can use CartProvider
     ),
   );
@@ -18,9 +18,18 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CourtNow',
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),),
-      home: const HomePage(title: 'CourtNow Home Page'),
+      theme: ThemeData(
+        appBarTheme: const AppBarTheme(
+          titleTextStyle: TextStyle(
+            color: Color(0xFF3A4F3A),
+            fontWeight: FontWeight.bold,
+          ),
+          iconTheme: IconThemeData(
+            color: Color(0xFF3A4F3A),
+          ),
+        ),
+      ),
+      home: const MainNavigation(),
     );
   }
 }
