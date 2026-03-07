@@ -4,6 +4,7 @@ import '../../../core/repositories/auth_repository.dart';
 import '../../admin/admin_dashboard_screen.dart';
 import '../../admin/qr_scanner_screen.dart';
 import '../../booking/booking_screen.dart';
+import '../../chat/realtime_chat_screen.dart';
 import '../../home/home_screen.dart';
 import '../../party/party_screen.dart';
 import '../../profile/profile_screen.dart';
@@ -32,6 +33,7 @@ class NavigationViewModel extends ChangeNotifier {
           HomePage(),
           BookingScreen(),
           PartyScreen(),
+          RealtimeChatScreen(),
           UserScreen(),
           AdminDashboardScreen(),
           QrScannerScreen(),
@@ -40,6 +42,7 @@ class NavigationViewModel extends ChangeNotifier {
           HomePage(),
           BookingScreen(),
           PartyScreen(),
+          RealtimeChatScreen(),
           UserScreen(),
         ];
 
@@ -56,6 +59,10 @@ class NavigationViewModel extends ChangeNotifier {
           BottomNavigationBarItem(
             icon: Icon(Icons.sports_soccer),
             label: 'Party',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline),
+            label: 'Chat',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
@@ -82,6 +89,10 @@ class NavigationViewModel extends ChangeNotifier {
           BottomNavigationBarItem(
             icon: Icon(Icons.sports_soccer),
             label: 'Party',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline),
+            label: 'Chat',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
