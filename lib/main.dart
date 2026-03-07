@@ -21,6 +21,9 @@ class MainApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => BookingProvider(),
         ),
+        // ChangeNotifierProvider(
+        //   create: (context) => BookingProvider(),
+        // ),
         ChangeNotifierProvider(
           create: (context) => NavigationViewModel(
             authRepository: SupabaseAuthRepository(
