@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/repositories/auth_repository.dart';
 import '../../admin/admin_dashboard_screen.dart';
 import '../../admin/qr_scanner_screen.dart';
-import '../../booking/booking_screen.dart';
 import '../../chat/realtime_chat_screen.dart';
+import '../../facility/facility_screen.dart';
 import '../../home/home_screen.dart';
 import '../../party/party_screen.dart';
 import '../../profile/profile_screen.dart';
@@ -22,7 +22,7 @@ class NavigationViewModel extends ChangeNotifier {
 
   bool get isLoading => _role == null;
 
-  bool get isAdmin => _role == UserRole.user;
+  bool get isAdmin => _role == UserRole.admin;
 
   Future<void> initialize() async {
     _role = await _authRepository.getCurrentUserRole();
@@ -33,7 +33,7 @@ class NavigationViewModel extends ChangeNotifier {
       isAdmin
           ? const [
             AdminDashboardScreen(),
-            BookingScreen(),
+            FacilityScreen(),
             PartyScreen(),
             RealtimeChatScreen(),
             QrScannerScreen(),
@@ -41,7 +41,7 @@ class NavigationViewModel extends ChangeNotifier {
           ]
           : const [
             HomePage(),
-            BookingScreen(),
+            FacilityScreen(),
             PartyScreen(),
             RealtimeChatScreen(),
             UserScreen(),
