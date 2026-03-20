@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/repositories/auth_repository.dart';
 import 'core/repositories/supabase_auth_repository.dart';
 import 'features/booking/booking_provider.dart';
+import 'features/booking/booking_schedule_screen.dart';
 import 'features/home/main_navigation.dart';
 import 'features/home/viewmodels/navigation_view_model.dart';
 
@@ -45,7 +46,7 @@ class MainApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const MainNavigation(),
+        home: const BookingScheduleScreen(),
       ),
     );
   }
