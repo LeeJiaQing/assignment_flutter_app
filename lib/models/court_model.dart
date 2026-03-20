@@ -45,15 +45,3 @@ class Court {
   static String _dateKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
-
-class Facility {
-  final String id;
-  final String name;
-  final List<Court> courts;
-
-  Facility({
-    required this.id,
-    required this.name,
-    required this.courts,
-  });
-}

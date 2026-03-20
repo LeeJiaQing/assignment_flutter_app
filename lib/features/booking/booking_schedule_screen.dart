@@ -3,7 +3,8 @@
 import 'package:flutter/material.dart';
 
 import '../../models/court_model.dart';
-import '../../models/timeslot_model.dart';
+import '../../models/facility_model.dart';
+import '../../models/facility_seed.dart';
 import 'payment_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,7 +27,11 @@ const int _kMaxSlots = 2;
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 class BookingScheduleScreen extends StatefulWidget {
-  const BookingScheduleScreen({super.key});
+  /// Pass the facility the user tapped "Book Now" on.
+  /// Falls back to the first facility if not provided.
+  final Facility? facility;
+
+  const BookingScheduleScreen({super.key, this.facility});
 
   @override
   State<BookingScheduleScreen> createState() => _BookingScheduleScreenState();
@@ -46,7 +51,8 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
   @override
   void initState() {
     super.initState();
-    _facility = getFacility();
+    // Use provided facility, fall back to first in catalogue
+    _facility = widget.facility ?? facilityList.first;
     _selectedDate = _today();
     _weekStart = _mondayOf(_selectedDate);
   }
@@ -61,9 +67,6 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
   DateTime _mondayOf(DateTime d) {
     return d.subtract(Duration(days: d.weekday - 1));
   }
-
-  String _dateKey(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   String _fmtMonth(DateTime d) {
     const months = [
@@ -133,7 +136,8 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
         elevation: 0,
         title: Text(
           _facility.name,
-          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style:
+          const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
@@ -223,7 +227,8 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
               style: TextStyle(
                 fontSize: 12,
                 color: isSelected ? _kGreen : Colors.black87,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontWeight:
+                isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
             const SizedBox(height: 4),
@@ -304,7 +309,8 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
         children: [
           Text(
             court.name,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            style:
+            const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -374,7 +380,6 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
   Widget _buildBottomBar() {
     final hasSelection = _selectedSlots.isNotEmpty;
 
-    // Build summary text
     String facilityLine = '';
     String dateLine = '';
     String timeLine = '';
@@ -382,13 +387,12 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
 
     if (hasSelection) {
       final first = _selectedSlots.first;
-      facilityLine =
-      '${_facility.name} – ${first.courtName}';
+      facilityLine = '${_facility.name} – ${first.courtName}';
       final d = _selectedDate;
       dateLine =
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
       timeLine = _selectedSlots.map((s) => s.slotLabel).join(', ');
-      final total = _selectedSlots.length * 8.00;
+      final total = _selectedSlots.length * _facility.pricePerSlot;
       totalLine = 'RM ${total.toStringAsFixed(2)}';
     }
 
@@ -445,7 +449,8 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
                   : null,
               child: const Text(
                 'Checkout',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style:
+                TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
           ),
