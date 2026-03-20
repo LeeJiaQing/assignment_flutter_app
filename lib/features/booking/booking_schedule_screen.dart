@@ -27,10 +27,7 @@ const int _kMaxSlots = 2;
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 class BookingScheduleScreen extends StatefulWidget {
-  /// Pass the facility the user tapped "Book Now" on.
-  /// Falls back to the first facility if not provided.
   final Facility? facility;
-
   const BookingScheduleScreen({super.key, this.facility});
 
   @override
@@ -40,18 +37,16 @@ class BookingScheduleScreen extends StatefulWidget {
 class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
   late final Facility _facility;
   late DateTime _selectedDate;
-  late DateTime _weekStart; // Monday of the displayed week
+  late DateTime _weekStart;
 
-  /// Selected slot ids (max _kMaxSlots per day across all courts)
   final Set<String> _selectedIds = {};
 
-  /// For the summary bar: store the actual TimeSlot objects selected
-  final List<_SelectedSlot> _selectedSlots = [];
+  // slotId -> _SelectedSlot
+  final Map<String, _SelectedSlot> _selectedSlots = {};
 
   @override
   void initState() {
     super.initState();
-    // Use provided facility, fall back to first in catalogue
     _facility = widget.facility ?? facilityList.first;
     _selectedDate = _today();
     _weekStart = _mondayOf(_selectedDate);
@@ -64,37 +59,41 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
     return DateTime(n.year, n.month, n.day);
   }
 
-  DateTime _mondayOf(DateTime d) {
-    return d.subtract(Duration(days: d.weekday - 1));
-  }
+  DateTime _mondayOf(DateTime d) =>
+      d.subtract(Duration(days: d.weekday - 1));
 
   String _fmtMonth(DateTime d) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January','February','March','April','May','June',
+      'July','August','September','October','November','December'
     ];
     return months[d.month - 1];
   }
 
   String _fmtShortDay(DateTime d) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     return days[d.weekday - 1];
   }
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  // ── slot selection logic ─────────────────────────────────────────────────
+  String get _formattedDate {
+    final d = _selectedDate;
+    return '${d.day.toString().padLeft(2,'0')}/'
+        '${d.month.toString().padLeft(2,'0')}/${d.year}';
+  }
+
+  // ── slot selection ────────────────────────────────────────────────────────
 
   void _toggleSlot(Court court, TimeSlot slot) {
-    final now = DateTime.now();
-    final effective = slot.effectiveStatus(now);
+    final effective = slot.effectiveStatus(DateTime.now());
     if (effective != SlotStatus.available) return;
 
     setState(() {
       if (_selectedIds.contains(slot.id)) {
         _selectedIds.remove(slot.id);
-        _selectedSlots.removeWhere((s) => s.slotId == slot.id);
+        _selectedSlots.remove(slot.id);
       } else {
         if (_selectedIds.length >= _kMaxSlots) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -106,26 +105,50 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
           return;
         }
         _selectedIds.add(slot.id);
-        _selectedSlots.add(_SelectedSlot(
+        _selectedSlots[slot.id] = _SelectedSlot(
           slotId: slot.id,
           courtName: court.name,
           slotLabel: slot.label,
-        ));
+        );
       }
     });
   }
 
-  // ── week navigation ──────────────────────────────────────────────────────
+  // ── checkout ──────────────────────────────────────────────────────────────
 
-  void _prevWeek() => setState(() {
-    _weekStart = _weekStart.subtract(const Duration(days: 7));
-  });
+  void _checkout() {
+    final slots = _selectedSlots.values.toList();
+    final bookings = slots
+        .map((s) => BookingInfo(
+      facilityName: _facility.name,
+      courtName: s.courtName,
+      imagePath: _facility.imagePath,
+      date: _formattedDate,
+      timeLabel: s.slotLabel,
+      total: _facility.pricePerSlot,
+    ))
+        .toList();
 
-  void _nextWeek() => setState(() {
-    _weekStart = _weekStart.add(const Duration(days: 7));
-  });
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentScreen(
+          bookings: bookings,
+          grandTotal: slots.length * _facility.pricePerSlot,
+        ),
+      ),
+    );
+  }
 
-  // ── build ────────────────────────────────────────────────────────────────
+  // ── week navigation ───────────────────────────────────────────────────────
+
+  void _prevWeek() => setState(
+          () => _weekStart = _weekStart.subtract(const Duration(days: 7)));
+
+  void _nextWeek() =>
+      setState(() => _weekStart = _weekStart.add(const Duration(days: 7)));
+
+  // ── build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -136,8 +159,8 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
         elevation: 0,
         title: Text(
           _facility.name,
-          style:
-          const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+              color: Colors.black, fontWeight: FontWeight.bold),
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
@@ -148,9 +171,8 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-              children: _facility.courts
-                  .map((c) => _buildCourtCard(c))
-                  .toList(),
+              children:
+              _facility.courts.map((c) => _buildCourtCard(c)).toList(),
             ),
           ),
         ],
@@ -159,7 +181,7 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
     );
   }
 
-  // ── calendar header ──────────────────────────────────────────────────────
+  // ── calendar header ───────────────────────────────────────────────────────
 
   Widget _buildCalendarHeader() {
     final days = List.generate(5, (i) => _weekStart.add(Duration(days: i)));
@@ -173,7 +195,6 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
       ),
       child: Column(
         children: [
-          // Month row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -197,10 +218,9 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          // Day columns
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: days.map((d) => _buildDayCell(d)).toList(),
+            children: days.map(_buildDayCell).toList(),
           ),
         ],
       ),
@@ -214,7 +234,6 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
     return GestureDetector(
       onTap: () => setState(() {
         _selectedDate = d;
-        // Clear selection when date changes
         _selectedIds.clear();
         _selectedSlots.clear();
       }),
@@ -257,7 +276,7 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
     );
   }
 
-  // ── legend ───────────────────────────────────────────────────────────────
+  // ── legend ────────────────────────────────────────────────────────────────
 
   Widget _buildLegend() {
     return Padding(
@@ -273,25 +292,23 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
     );
   }
 
-  Widget _legendDot(Color bg, Color textColor, String label) {
-    return Row(
-      children: [
-        Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(
-            color: bg,
-            shape: BoxShape.circle,
-            border: Border.all(color: textColor.withOpacity(0.4)),
-          ),
+  Widget _legendDot(Color bg, Color textColor, String label) => Row(
+    children: [
+      Container(
+        width: 14,
+        height: 14,
+        decoration: BoxDecoration(
+          color: bg,
+          shape: BoxShape.circle,
+          border: Border.all(color: textColor.withOpacity(0.4)),
         ),
-        const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
-    );
-  }
+      ),
+      const SizedBox(width: 6),
+      Text(label, style: const TextStyle(fontSize: 12)),
+    ],
+  );
 
-  // ── court card ───────────────────────────────────────────────────────────
+  // ── court card ────────────────────────────────────────────────────────────
 
   Widget _buildCourtCard(Court court) {
     final slots = court.slotsForDate(_selectedDate);
@@ -307,18 +324,15 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            court.name,
-            style:
-            const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
+          Text(court.name,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: slots
-                .map((slot) => _buildSlotChip(court, slot, now))
-                .toList(),
+            children:
+            slots.map((s) => _buildSlotChip(court, s, now)).toList(),
           ),
         ],
       ),
@@ -375,26 +389,12 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
     );
   }
 
-  // ── bottom summary bar ────────────────────────────────────────────────────
+  // ── bottom summary bar ─────────────────────────────────────────────────────
 
   Widget _buildBottomBar() {
-    final hasSelection = _selectedSlots.isNotEmpty;
-
-    String facilityLine = '';
-    String dateLine = '';
-    String timeLine = '';
-    String totalLine = '';
-
-    if (hasSelection) {
-      final first = _selectedSlots.first;
-      facilityLine = '${_facility.name} – ${first.courtName}';
-      final d = _selectedDate;
-      dateLine =
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-      timeLine = _selectedSlots.map((s) => s.slotLabel).join(', ');
-      final total = _selectedSlots.length * _facility.pricePerSlot;
-      totalLine = 'RM ${total.toStringAsFixed(2)}';
-    }
+    final slots = _selectedSlots.values.toList();
+    final hasSelection = slots.isNotEmpty;
+    final total = slots.length * _facility.pricePerSlot;
 
     return Container(
       color: Colors.white,
@@ -404,21 +404,24 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (hasSelection) ...[
-            Text('Facility: $facilityLine',
+            Text(
+              'Facility: ${_facility.name} – ${slots.first.courtName}',
+              style: const TextStyle(fontSize: 13),
+            ),
+            Text('Date: $_formattedDate',
                 style: const TextStyle(fontSize: 13)),
-            Text('Date: $dateLine', style: const TextStyle(fontSize: 13)),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
-                    'Time: $timeLine',
+                    'Time: ${slots.map((s) => s.slotLabel).join(', ')}',
                     style: const TextStyle(fontSize: 13),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Text(
-                  'Total: $totalLine',
+                  'Total: RM ${total.toStringAsFixed(2)}',
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 13),
                 ),
@@ -437,20 +440,10 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 disabledBackgroundColor: _kExpiredChip,
               ),
-              onPressed: hasSelection
-                  ? () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const PaymentScreen(),
-                  ),
-                );
-              }
-                  : null,
+              onPressed: hasSelection ? _checkout : null,
               child: const Text(
                 'Checkout',
-                style:
-                TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
           ),
@@ -461,13 +454,13 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Simple data class for a selected slot in the summary bar
+// Internal model for a selected slot
 // ─────────────────────────────────────────────────────────────────────────────
+
 class _SelectedSlot {
   final String slotId;
   final String courtName;
   final String slotLabel;
-
   const _SelectedSlot({
     required this.slotId,
     required this.courtName,
