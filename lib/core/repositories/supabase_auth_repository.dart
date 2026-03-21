@@ -16,4 +16,26 @@ class SupabaseAuthRepository implements AuthRepository {
     // 3) map role string to UserRole enum
     return fallbackRole;
   }
+
+  @override
+  // TODO: implement isSignedIn
+  bool get isSignedIn => throw UnimplementedError();
+
+  @override
+  Future<void> signIn(String email, String password) {
+    // TODO: implement signIn
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> signOut() {
+    // TODO: implement signOut
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> signUp({required String email, required String password, required String fullName}) {
+    // TODO: implement signUp
+    throw UnimplementedError();
+  }
 }

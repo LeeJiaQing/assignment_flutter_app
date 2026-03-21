@@ -2,14 +2,11 @@
 //jq
 import 'package:flutter/material.dart';
 
-import '../../models/court_model.dart';
+import '../../core/repositories/booking_repository.dart';
+import '../../models/booking_model.dart';
 import '../../models/facility_model.dart';
-import '../../models/facility_seed.dart';
 import 'payment_screen.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants / theme colours
-// ─────────────────────────────────────────────────────────────────────────────
 const _kGreen = Color(0xFF1C894E);
 const _kGreenLight = Color(0xFF6DCC98);
 const _kBg = Color(0xFFC8DFC3);
@@ -23,23 +20,23 @@ const _kExpiredChip = Color(0xFFE0E0E0);
 const _kExpiredText = Color(0xFF9E9E9E);
 const int _kMaxSlots = 2;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 class BookingScheduleScreen extends StatefulWidget {
-  final Facility? facility;
-  const BookingScheduleScreen({super.key, this.facility});
+  final Facility facility;
+  const BookingScheduleScreen({super.key, required this.facility});
 
   @override
   State<BookingScheduleScreen> createState() => _BookingScheduleScreenState();
 }
 
 class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
-  late final Facility _facility;
+  final _repo = BookingRepository();
+
   late DateTime _selectedDate;
   late DateTime _weekStart;
 
-  final Set<String> _selectedIds = {};
+  // courtId -> Set<bookedHour> fetched from Supabase
+  final Map<String, Set<int>> _bookedHoursCache = {};
+  final Map<String, bool> _loadingCourts = {};
 
   // slotId -> _SelectedSlot
   final Map<String, _SelectedSlot> _selectedSlots = {};
@@ -47,12 +44,12 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
   @override
   void initState() {
     super.initState();
-    _facility = widget.facility ?? facilityList.first;
     _selectedDate = _today();
     _weekStart = _mondayOf(_selectedDate);
+    _loadBookedHoursForDate(_selectedDate);
   }
 
-  // ── helpers ──────────────────────────────────────────────────────────────
+  // ── helpers ───────────────────────────────────────────────────────────────
 
   DateTime _today() {
     final n = DateTime.now();
@@ -61,6 +58,9 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
 
   DateTime _mondayOf(DateTime d) =>
       d.subtract(Duration(days: d.weekday - 1));
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   String _fmtMonth(DateTime d) {
     const months = [
@@ -75,13 +75,53 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
     return days[d.weekday - 1];
   }
 
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
-
   String get _formattedDate {
     final d = _selectedDate;
     return '${d.day.toString().padLeft(2,'0')}/'
         '${d.month.toString().padLeft(2,'0')}/${d.year}';
+  }
+
+  // ── slot generation from facility open/close hours ────────────────────────
+
+  List<TimeSlot> _slotsForCourt(String courtId) {
+    final bookedHours = _bookedHoursCache[courtId] ?? {};
+    final slots = <TimeSlot>[];
+
+    for (int h = widget.facility.openHour; h < widget.facility.closeHour; h++) {
+      final slot = TimeSlot(
+        courtId:   courtId,
+        date:      _selectedDate,
+        startHour: h,
+        endHour:   h + 1,
+        status: bookedHours.contains(h)
+            ? SlotStatus.booked
+            : SlotStatus.available,
+      );
+      slots.add(slot);
+    }
+    return slots;
+  }
+
+  // ── Supabase fetch ────────────────────────────────────────────────────────
+
+  Future<void> _loadBookedHoursForDate(DateTime date) async {
+    for (final court in widget.facility.courts) {
+      if (_loadingCourts[court.id] == true) continue;
+      setState(() => _loadingCourts[court.id] = true);
+
+      try {
+        final hours = await _repo.fetchBookedHours(
+            courtId: court.id, date: date);
+        if (mounted) {
+          setState(() {
+            _bookedHoursCache[court.id] = hours;
+            _loadingCourts[court.id] = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _loadingCourts[court.id] = false);
+      }
+    }
   }
 
   // ── slot selection ────────────────────────────────────────────────────────
@@ -91,24 +131,20 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
     if (effective != SlotStatus.available) return;
 
     setState(() {
-      if (_selectedIds.contains(slot.id)) {
-        _selectedIds.remove(slot.id);
+      if (_selectedSlots.containsKey(slot.id)) {
         _selectedSlots.remove(slot.id);
       } else {
-        if (_selectedIds.length >= _kMaxSlots) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You can book a maximum of 2 slots per day.'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+        if (_selectedSlots.length >= _kMaxSlots) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('You can book a maximum of 2 slots per day.'),
+            duration: Duration(seconds: 2),
+          ));
           return;
         }
-        _selectedIds.add(slot.id);
         _selectedSlots[slot.id] = _SelectedSlot(
-          slotId: slot.id,
+          slot:      slot,
+          courtId:   court.id,
           courtName: court.name,
-          slotLabel: slot.label,
         );
       }
     });
@@ -117,15 +153,20 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
   // ── checkout ──────────────────────────────────────────────────────────────
 
   void _checkout() {
-    final slots = _selectedSlots.values.toList();
-    final bookings = slots
+    final entries = _selectedSlots.values.toList();
+    final bookings = entries
         .map((s) => BookingInfo(
-      facilityName: _facility.name,
-      courtName: s.courtName,
-      imagePath: _facility.imagePath,
-      date: _formattedDate,
-      timeLabel: s.slotLabel,
-      total: _facility.pricePerSlot,
+      facilityName: widget.facility.name,
+      facilityId:   widget.facility.id,
+      courtId:      s.courtId,
+      courtName:    s.courtName,
+      imageUrl:     widget.facility.imageUrl,
+      date:         _selectedDate,
+      formattedDate: _formattedDate,
+      startHour:    s.slot.startHour,
+      endHour:      s.slot.endHour,
+      timeLabel:    s.slot.label,
+      pricePerSlot: widget.facility.pricePerSlot,
     ))
         .toList();
 
@@ -133,8 +174,8 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => PaymentScreen(
-          bookings: bookings,
-          grandTotal: slots.length * _facility.pricePerSlot,
+          bookings:   bookings,
+          grandTotal: entries.length * widget.facility.pricePerSlot,
         ),
       ),
     );
@@ -157,11 +198,9 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
       appBar: AppBar(
         backgroundColor: _kBg,
         elevation: 0,
-        title: Text(
-          _facility.name,
-          style: const TextStyle(
-              color: Colors.black, fontWeight: FontWeight.bold),
-        ),
+        title: Text(widget.facility.name,
+            style: const TextStyle(
+                color: Colors.black, fontWeight: FontWeight.bold)),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: Column(
@@ -171,8 +210,9 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-              children:
-              _facility.courts.map((c) => _buildCourtCard(c)).toList(),
+              children: widget.facility.courts
+                  .map(_buildCourtCard)
+                  .toList(),
             ),
           ),
         ],
@@ -181,40 +221,34 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
     );
   }
 
-  // ── calendar header ───────────────────────────────────────────────────────
+  // ── calendar ──────────────────────────────────────────────────────────────
 
   Widget _buildCalendarHeader() {
     final days = List.generate(5, (i) => _weekStart.add(Duration(days: i)));
-
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFD6F0E0),
-        borderRadius: BorderRadius.circular(20),
-      ),
+          color: const Color(0xFFD6F0E0),
+          borderRadius: BorderRadius.circular(20)),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
-                icon: const Icon(Icons.chevron_left, color: Colors.black),
-                onPressed: _prevWeek,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              Text(
-                _fmtMonth(_weekStart),
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16),
-              ),
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: _prevWeek,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints()),
+              Text(_fmtMonth(_weekStart),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
               IconButton(
-                icon: const Icon(Icons.chevron_right, color: Colors.black),
-                onPressed: _nextWeek,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: _nextWeek,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints()),
             ],
           ),
           const SizedBox(height: 8),
@@ -230,26 +264,25 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
   Widget _buildDayCell(DateTime d) {
     final isSelected = _isSameDay(d, _selectedDate);
     final isToday = _isSameDay(d, _today());
-
     return GestureDetector(
-      onTap: () => setState(() {
-        _selectedDate = d;
-        _selectedIds.clear();
-        _selectedSlots.clear();
-      }),
+      onTap: () {
+        setState(() {
+          _selectedDate = d;
+          _selectedSlots.clear();
+        });
+        _loadBookedHoursForDate(d);
+      },
       child: SizedBox(
         width: 52,
         child: Column(
           children: [
-            Text(
-              _fmtShortDay(d),
-              style: TextStyle(
-                fontSize: 12,
-                color: isSelected ? _kGreen : Colors.black87,
-                fontWeight:
-                isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
+            Text(_fmtShortDay(d),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isSelected ? _kGreen : Colors.black87,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal)),
             const SizedBox(height: 4),
             Container(
               width: 36,
@@ -262,13 +295,10 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
                     : null,
               ),
               alignment: Alignment.center,
-              child: Text(
-                '${d.day}',
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: Text('${d.day}',
+                  style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black,
+                      fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -278,31 +308,27 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
 
   // ── legend ────────────────────────────────────────────────────────────────
 
-  Widget _buildLegend() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _legendDot(_kAvailableChip, _kAvailableText, 'Available'),
-          const SizedBox(width: 24),
-          _legendDot(_kUnavailableChip, _kUnavailableText, 'Unavailable'),
-        ],
-      ),
-    );
-  }
+  Widget _buildLegend() => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _dot(_kAvailableChip, _kAvailableText, 'Available'),
+        const SizedBox(width: 24),
+        _dot(_kUnavailableChip, _kUnavailableText, 'Unavailable'),
+      ],
+    ),
+  );
 
-  Widget _legendDot(Color bg, Color textColor, String label) => Row(
+  Widget _dot(Color bg, Color fg, String label) => Row(
     children: [
       Container(
-        width: 14,
-        height: 14,
-        decoration: BoxDecoration(
-          color: bg,
-          shape: BoxShape.circle,
-          border: Border.all(color: textColor.withOpacity(0.4)),
-        ),
-      ),
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+              color: bg,
+              shape: BoxShape.circle,
+              border: Border.all(color: fg.withOpacity(0.4)))),
       const SizedBox(width: 6),
       Text(label, style: const TextStyle(fontSize: 12)),
     ],
@@ -311,16 +337,15 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
   // ── court card ────────────────────────────────────────────────────────────
 
   Widget _buildCourtCard(Court court) {
-    final slots = court.slotsForDate(_selectedDate);
+    final isLoading = _loadingCourts[court.id] == true;
+    final slots = _slotsForCourt(court.id);
     final now = DateTime.now();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _kCardBg,
-        borderRadius: BorderRadius.circular(20),
-      ),
+          color: _kCardBg, borderRadius: BorderRadius.circular(20)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -328,12 +353,20 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
               style: const TextStyle(
                   fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children:
-            slots.map((s) => _buildSlotChip(court, s, now)).toList(),
-          ),
+          if (isLoading)
+            const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ))
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: slots
+                  .map((s) => _buildSlotChip(court, s, now))
+                  .toList(),
+            ),
         ],
       ),
     );
@@ -341,7 +374,7 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
 
   Widget _buildSlotChip(Court court, TimeSlot slot, DateTime now) {
     final effective = slot.effectiveStatus(now);
-    final isSelected = _selectedIds.contains(slot.id);
+    final isSelected = _selectedSlots.containsKey(slot.id);
 
     Color chipColor;
     Color textColor;
@@ -374,27 +407,22 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: chipColor,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          slot.label,
-          style: TextStyle(
-            color: textColor,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+            color: chipColor, borderRadius: BorderRadius.circular(20)),
+        child: Text(slot.label,
+            style: TextStyle(
+                color: textColor,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500)),
       ),
     );
   }
 
-  // ── bottom summary bar ─────────────────────────────────────────────────────
+  // ── bottom bar ────────────────────────────────────────────────────────────
 
   Widget _buildBottomBar() {
     final slots = _selectedSlots.values.toList();
     final hasSelection = slots.isNotEmpty;
-    final total = slots.length * _facility.pricePerSlot;
+    final total = slots.length * widget.facility.pricePerSlot;
 
     return Container(
       color: Colors.white,
@@ -405,7 +433,7 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
         children: [
           if (hasSelection) ...[
             Text(
-              'Facility: ${_facility.name} – ${slots.first.courtName}',
+              'Facility: ${widget.facility.name} – ${slots.first.courtName}',
               style: const TextStyle(fontSize: 13),
             ),
             Text('Date: $_formattedDate',
@@ -415,16 +443,14 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Time: ${slots.map((s) => s.slotLabel).join(', ')}',
+                    'Time: ${slots.map((s) => s.slot.label).join(', ')}',
                     style: const TextStyle(fontSize: 13),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Text(
-                  'Total: RM ${total.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13),
-                ),
+                Text('Total: RM ${total.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13)),
               ],
             ),
             const SizedBox(height: 10),
@@ -441,10 +467,9 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
                 disabledBackgroundColor: _kExpiredChip,
               ),
               onPressed: hasSelection ? _checkout : null,
-              child: const Text(
-                'Checkout',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
+              child: const Text('Checkout',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ),
         ],
@@ -454,16 +479,16 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Internal model for a selected slot
+// Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SelectedSlot {
-  final String slotId;
+  final TimeSlot slot;
+  final String courtId;
   final String courtName;
-  final String slotLabel;
   const _SelectedSlot({
-    required this.slotId,
+    required this.slot,
+    required this.courtId,
     required this.courtName,
-    required this.slotLabel,
   });
 }

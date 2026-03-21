@@ -1,15 +1,15 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/repositories/auth_repository.dart';
-import 'core/repositories/supabase_auth_repository.dart';
-import 'features/booking/booking_provider.dart';
-import 'features/booking/booking_schedule_screen.dart';
-import 'features/facility/facility_screen.dart';
+import 'core/supabase/supabase_config.dart';
 import 'features/home/main_navigation.dart';
 import 'features/home/viewmodels/navigation_view_model.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SupabaseConfig.init();
   runApp(const MainApp());
 }
 
@@ -21,33 +21,23 @@ class MainApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (context) => BookingProvider(),
-        ),
-        // ChangeNotifierProvider(
-        //   create: (context) => BookingProvider(),
-        // ),
-        ChangeNotifierProvider(
-          create: (context) => NavigationViewModel(
-            authRepository: SupabaseAuthRepository(
-              // Replace with real Supabase role lookup after auth integration.
-              fallbackRole: UserRole.admin,
-            ),
+          create: (_) => NavigationViewModel(
+            authRepository: AuthRepository(),
           )..initialize(),
         ),
       ],
       child: MaterialApp(
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(
           appBarTheme: const AppBarTheme(
             titleTextStyle: TextStyle(
               color: Color(0xFF3A4F3A),
               fontWeight: FontWeight.bold,
             ),
-            iconTheme: IconThemeData(
-              color: Color(0xFF3A4F3A),
-            ),
+            iconTheme: IconThemeData(color: Color(0xFF3A4F3A)),
           ),
         ),
-        home: const FacilityScreen(),
+        home: const MainNavigation(),
       ),
     );
   }
