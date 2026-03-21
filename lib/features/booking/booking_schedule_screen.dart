@@ -224,7 +224,7 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
   // ── calendar ──────────────────────────────────────────────────────────────
 
   Widget _buildCalendarHeader() {
-    final days = List.generate(5, (i) => _weekStart.add(Duration(days: i)));
+    final days = List.generate(7, (i) => _weekStart.add(Duration(days: i)));
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -254,7 +254,7 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: days.map(_buildDayCell).toList(),
+            children: days.map((d) => Expanded(child: _buildDayCell(d))).toList(),
           ),
         ],
       ),
@@ -272,36 +272,34 @@ class _BookingScheduleScreenState extends State<BookingScheduleScreen> {
         });
         _loadBookedHoursForDate(d);
       },
-      child: SizedBox(
-        width: 52,
-        child: Column(
-          children: [
-            Text(_fmtShortDay(d),
-                style: TextStyle(
-                    fontSize: 12,
-                    color: isSelected ? _kGreen : Colors.black87,
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal)),
-            const SizedBox(height: 4),
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: isSelected ? _kGreen : Colors.transparent,
-                shape: BoxShape.circle,
-                border: isToday && !isSelected
-                    ? Border.all(color: _kGreen, width: 1.5)
-                    : null,
-              ),
-              alignment: Alignment.center,
-              child: Text('${d.day}',
-                  style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black,
-                      fontWeight: FontWeight.bold)),
+      child: Column(         // removed SizedBox(width: 52) wrapper
+        children: [
+          Text(_fmtShortDay(d),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: isSelected ? _kGreen : Colors.black87,
+                  fontWeight: isSelected
+                      ? FontWeight.bold
+                      : FontWeight.normal)),
+          const SizedBox(height: 4),
+          Container(
+            width: 32,       // slightly smaller to fit 7 days
+            height: 32,
+            decoration: BoxDecoration(
+              color: isSelected ? _kGreen : Colors.transparent,
+              shape: BoxShape.circle,
+              border: isToday && !isSelected
+                  ? Border.all(color: _kGreen, width: 1.5)
+                  : null,
             ),
-          ],
-        ),
+            alignment: Alignment.center,
+            child: Text('${d.day}',
+                style: TextStyle(
+                    fontSize: 13,
+                    color: isSelected ? Colors.white : Colors.black,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

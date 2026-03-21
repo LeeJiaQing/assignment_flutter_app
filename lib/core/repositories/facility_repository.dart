@@ -9,6 +9,7 @@ class FacilityRepository {
         .from('facilities')
         .select('*, courts(*)')
         .order('name');
+    print('Facilities response: $response');
 
     return (response as List<dynamic>)
         .map((json) => Facility.fromJson(json as Map<String, dynamic>))

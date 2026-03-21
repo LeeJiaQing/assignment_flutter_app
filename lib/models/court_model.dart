@@ -25,23 +25,23 @@ class TimeSlot {
   }
 }
 
-class Court {
-  final String id;
-  final String name; // e.g. "Court 1"
-  /// key = date string "yyyy-MM-dd", value = list of slots for that day
-  final Map<String, List<TimeSlot>> scheduleByDate;
-
-  Court({
-    required this.id,
-    required this.name,
-    required this.scheduleByDate,
-  });
-
-  List<TimeSlot> slotsForDate(DateTime date) {
-    final key = _dateKey(date);
-    return scheduleByDate[key] ?? [];
-  }
-
-  static String _dateKey(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-}
+// class Court {
+//   final String id;
+//   final String name; // e.g. "Court 1"
+//   /// key = date string "yyyy-MM-dd", value = list of slots for that day
+//   final Map<String, List<TimeSlot>> scheduleByDate;
+//
+//   Court({
+//     required this.id,
+//     required this.name,
+//     required this.scheduleByDate,
+//   });
+//
+//   List<TimeSlot> slotsForDate(DateTime date) {
+//     final key = _dateKey(date);
+//     return scheduleByDate[key] ?? [];
+//   }
+//
+//   static String _dateKey(DateTime d) =>
+//       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+// }

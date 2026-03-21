@@ -11,6 +11,7 @@ class Court {
     required this.name,
   });
 
+  //convert a JSON map (from an API or database) into a Dart object.
   factory Court.fromJson(Map<String, dynamic> json) => Court(
     id:         json['id'] as String,
     facilityId: json['facility_id'] as String,
