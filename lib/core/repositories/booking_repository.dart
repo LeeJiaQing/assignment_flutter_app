@@ -4,7 +4,6 @@ import '../supabase/supabase_config.dart';
 
 class BookingRepository {
   /// Returns all booked start_hours for a given court on a given date.
-  /// Used to mark slots as unavailable in the schedule screen.
   Future<Set<int>> fetchBookedHours({
     required String courtId,
     required DateTime date,
@@ -51,13 +50,13 @@ class BookingRepository {
     final response = await supabase
         .from('bookings')
         .insert({
-      'user_id':     userId,
-      'court_id':    courtId,
+      'user_id': userId,
+      'court_id': courtId,
       'facility_id': facilityId,
-      'date':        date.toIso8601String().substring(0, 10),
-      'start_hour':  startHour,
-      'end_hour':    endHour,
-      'status':      'confirmed',
+      'date': date.toIso8601String().substring(0, 10),
+      'start_hour': startHour,
+      'end_hour': endHour,
+      'status': 'confirmed',
     })
         .select()
         .single();
@@ -69,16 +68,16 @@ class BookingRepository {
   Future<void> createPayment({
     required String bookingId,
     required double amount,
-    required String method, // 'tng' | 'card' | 'banking'
+    required String method,
   }) async {
     final userId = supabase.auth.currentUser!.id;
 
     await supabase.from('payments').insert({
       'booking_id': bookingId,
-      'user_id':    userId,
-      'amount':     amount,
-      'method':     method,
-      'status':     'paid',
+      'user_id': userId,
+      'amount': amount,
+      'method': method,
+      'status': 'paid',
     });
   }
 

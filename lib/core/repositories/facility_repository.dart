@@ -9,7 +9,6 @@ class FacilityRepository {
         .from('facilities')
         .select('*, courts(*)')
         .order('name');
-    print('Facilities response: $response');
 
     return (response as List<dynamic>)
         .map((json) => Facility.fromJson(json as Map<String, dynamic>))
@@ -28,17 +27,45 @@ class FacilityRepository {
   }
 
   /// Fetch multiple facilities by a list of ids.
-  /// Used by BookingScreen to resolve facility names from booking rows.
   Future<List<Facility>> fetchFacilitiesByIds(List<String> ids) async {
     if (ids.isEmpty) return [];
 
     final response = await supabase
         .from('facilities')
-        .select('id, name, address, image_url, open_hour, close_hour, price_per_slot')
+        .select(
+        'id, name, address, image_url, open_hour, close_hour, price_per_slot')
         .inFilter('id', ids);
 
     return (response as List<dynamic>)
         .map((json) => Facility.fromJson(json as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Create a new facility.
+  Future<Facility> createFacility(Map<String, dynamic> data) async {
+    final response = await supabase
+        .from('facilities')
+        .insert(data)
+        .select('*, courts(*)')
+        .single();
+
+    return Facility.fromJson(response);
+  }
+
+  /// Update an existing facility.
+  Future<Facility> updateFacility(String id, Map<String, dynamic> data) async {
+    final response = await supabase
+        .from('facilities')
+        .update(data)
+        .eq('id', id)
+        .select('*, courts(*)')
+        .single();
+
+    return Facility.fromJson(response);
+  }
+
+  /// Delete a facility.
+  Future<void> deleteFacility(String id) async {
+    await supabase.from('facilities').delete().eq('id', id);
   }
 }

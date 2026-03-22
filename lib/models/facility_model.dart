@@ -11,11 +11,10 @@ class Court {
     required this.name,
   });
 
-  //convert a JSON map (from an API or database) into a Dart object.
   factory Court.fromJson(Map<String, dynamic> json) => Court(
-    id:         json['id'] as String,
+    id: json['id'] as String,
     facilityId: json['facility_id'] as String,
-    name:       json['name'] as String,
+    name: json['name'] as String,
   );
 }
 
@@ -41,12 +40,12 @@ class Facility {
   });
 
   factory Facility.fromJson(Map<String, dynamic> json) => Facility(
-    id:           json['id'] as String,
-    name:         json['name'] as String,
-    address:      json['address'] as String,
-    imageUrl:     json['image_url'] as String?,
-    openHour:     json['open_hour'] as int,
-    closeHour:    json['close_hour'] as int,
+    id: json['id'] as String,
+    name: json['name'] as String,
+    address: json['address'] as String,
+    imageUrl: json['image_url'] as String?,
+    openHour: json['open_hour'] as int,
+    closeHour: json['close_hour'] as int,
     pricePerSlot: (json['price_per_slot'] as num).toDouble(),
     courts: (json['courts'] as List<dynamic>? ?? [])
         .map((c) => Court.fromJson(c as Map<String, dynamic>))

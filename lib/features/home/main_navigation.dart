@@ -1,6 +1,14 @@
+// lib/features/home/main_navigation.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../admin/admin_dashboard_screen.dart';
+import '../admin/qr_scanner_screen.dart';
+import '../chat/realtime_chat_screen.dart';
+import '../facility/facility_screen.dart';
+import '../home/home_screen.dart';
+import '../party/party_screen.dart';
+import '../profile/profile_screen.dart';
 import '../notification/notification_screen.dart';
 import 'viewmodels/navigation_view_model.dart';
 
@@ -9,17 +17,32 @@ class MainNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<NavigationViewModel>();
+    final vm = context.watch<NavigationViewModel>();
 
-    if (viewModel.isLoading) {
+    if (vm.isLoading) {
       return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    viewModel.ensureValidIndex();
+    vm.ensureValidIndex();
+
+    final pages = vm.isAdmin
+        ? const [
+      AdminDashboardScreen(),
+      FacilityScreen(),
+      PartyScreen(),
+      RealtimeChatScreen(),
+      QrScannerScreen(),
+      ProfileScreen(),
+    ]
+        : const [
+      HomePage(),
+      FacilityScreen(),
+      PartyScreen(),
+      RealtimeChatScreen(),
+      ProfileScreen(),
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -28,28 +51,25 @@ class MainNavigation extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.campaign_outlined),
             tooltip: 'Announcements',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const NotificationScreen(),
-                ),
-              );
-            },
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const NotificationScreen()),
+            ),
           ),
         ],
       ),
       body: IndexedStack(
-        index: viewModel.currentIndex,
-        children: viewModel.pages,
+        index: vm.currentIndex,
+        children: pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        currentIndex: viewModel.currentIndex,
+        currentIndex: vm.currentIndex,
         selectedItemColor: const Color(0xFF6DCC98),
         unselectedItemColor: Colors.grey,
-        onTap: viewModel.setTab,
-        items: viewModel.items,
+        onTap: vm.setTab,
+        items: vm.items,
       ),
     );
   }

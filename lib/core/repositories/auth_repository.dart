@@ -5,7 +5,7 @@ enum UserRole { admin, user }
 
 class AuthRepository {
   /// Returns the role of the currently signed-in user by reading
-  /// the profiles table.  Falls back to [UserRole.user] if no row exists.
+  /// the profiles table. Falls back to [UserRole.user] if no row exists.
   Future<UserRole> getCurrentUserRole() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return UserRole.user;
@@ -22,12 +22,10 @@ class AuthRepository {
         : UserRole.user;
   }
 
-  /// Sign in with email + password.
   Future<void> signIn(String email, String password) async {
     await supabase.auth.signInWithPassword(email: email, password: password);
   }
 
-  /// Register a new user.
   Future<void> signUp({
     required String email,
     required String password,
@@ -40,7 +38,6 @@ class AuthRepository {
     );
   }
 
-  /// Sign out the current user.
   Future<void> signOut() async {
     await supabase.auth.signOut();
   }

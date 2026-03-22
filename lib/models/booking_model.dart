@@ -17,7 +17,8 @@ class TimeSlot {
     this.status = SlotStatus.available,
   });
 
-  String get id => '${courtId}_${date.toIso8601String().substring(0,10)}_$startHour';
+  String get id =>
+      '${courtId}_${date.toIso8601String().substring(0, 10)}_$startHour';
 
   String get label {
     String fmt(int h) {
@@ -58,24 +59,24 @@ class Booking {
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) => Booking(
-    id:         json['id'] as String,
-    userId:     json['user_id'] as String,
-    courtId:    json['court_id'] as String,
+    id: json['id'] as String,
+    userId: json['user_id'] as String,
+    courtId: json['court_id'] as String,
     facilityId: json['facility_id'] as String,
-    date:       DateTime.parse(json['date'] as String),
-    startHour:  json['start_hour'] as int,
-    endHour:    json['end_hour'] as int,
-    status:     json['status'] as String,
+    date: DateTime.parse(json['date'] as String),
+    startHour: json['start_hour'] as int,
+    endHour: json['end_hour'] as int,
+    status: json['status'] as String,
   );
 
   Map<String, dynamic> toJson() => {
-    'user_id':     userId,
-    'court_id':    courtId,
+    'user_id': userId,
+    'court_id': courtId,
     'facility_id': facilityId,
-    'date':        date.toIso8601String().substring(0, 10),
-    'start_hour':  startHour,
-    'end_hour':    endHour,
-    'status':      status,
+    'date': date.toIso8601String().substring(0, 10),
+    'start_hour': startHour,
+    'end_hour': endHour,
+    'status': status,
   };
 }
 
@@ -94,9 +95,9 @@ class Payment {
 
   Map<String, dynamic> toJson() => {
     'booking_id': bookingId,
-    'user_id':    userId,
-    'amount':     amount,
-    'method':     method,
-    'status':     'paid',
+    'user_id': userId,
+    'amount': amount,
+    'method': method,
+    'status': 'paid',
   };
 }
