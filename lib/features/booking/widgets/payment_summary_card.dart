@@ -28,9 +28,12 @@ class PaymentSummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius:
-            const BorderRadius.horizontal(left: Radius.circular(16)),
-            child: FacilityThumb(imageUrl: item.imageUrl, height: 100),
+            borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+            child: SizedBox(
+              width: 100,          // ← add explicit width
+              height: 100,
+              child: FacilityThumb(imageUrl: item.imageUrl, height: 100),
+            ),
           ),
           Expanded(
             child: Padding(
