@@ -3,6 +3,31 @@ import '../../models/facility_model.dart';
 import '../supabase/supabase_config.dart';
 
 class FacilityRepository {
+  static const _bucket = 'facilities';
+
+  /// Converts a stored path (e.g. "court1.jpg") into a public URL.
+  /// If the value is already a full URL (legacy rows), it is returned as-is.
+  String? _resolveImageUrl(String? path) {
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('http')) return path;
+    return supabase.storage.from(_bucket).getPublicUrl(path);
+  }
+
+  /// Converts a raw JSON map into a [Facility], resolving the image path.
+  Facility _fromJson(Map<String, dynamic> json) {
+    final raw = Facility.fromJson(json);
+    return Facility(
+      id: raw.id,
+      name: raw.name,
+      address: raw.address,
+      imageUrl: _resolveImageUrl(raw.imageUrl),
+      openHour: raw.openHour,
+      closeHour: raw.closeHour,
+      pricePerSlot: raw.pricePerSlot,
+      courts: raw.courts,
+    );
+  }
+
   /// Fetch all facilities with their nested courts.
   Future<List<Facility>> fetchFacilities() async {
     final response = await supabase
@@ -11,7 +36,7 @@ class FacilityRepository {
         .order('name');
 
     return (response as List<dynamic>)
-        .map((json) => Facility.fromJson(json as Map<String, dynamic>))
+        .map((json) => _fromJson(json as Map<String, dynamic>))
         .toList();
   }
 
@@ -23,7 +48,7 @@ class FacilityRepository {
         .eq('id', id)
         .single();
 
-    return Facility.fromJson(response);
+    return _fromJson(response);
   }
 
   /// Fetch multiple facilities by a list of ids.
@@ -37,7 +62,7 @@ class FacilityRepository {
         .inFilter('id', ids);
 
     return (response as List<dynamic>)
-        .map((json) => Facility.fromJson(json as Map<String, dynamic>))
+        .map((json) => _fromJson(json as Map<String, dynamic>))
         .toList();
   }
 
@@ -49,7 +74,7 @@ class FacilityRepository {
         .select('*, courts(*)')
         .single();
 
-    return Facility.fromJson(response);
+    return _fromJson(response);
   }
 
   /// Update an existing facility.
@@ -61,7 +86,7 @@ class FacilityRepository {
         .select('*, courts(*)')
         .single();
 
-    return Facility.fromJson(response);
+    return _fromJson(response);
   }
 
   /// Delete a facility.

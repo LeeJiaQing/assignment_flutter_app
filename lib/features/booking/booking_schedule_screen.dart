@@ -53,6 +53,14 @@ class _BookingScheduleView extends StatelessWidget {
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
+      // bottomNavigationBar reserves its own space — the body will never
+      // slide under it, unlike bottomSheet which floats on top.
+      bottomNavigationBar: CheckoutBottomBar(
+        selectedSlots: vm.selectedSlots,
+        formattedDate: vm.formattedDate,
+        grandTotal: vm.grandTotal,
+        onCheckout: vm.hasSelection ? () => _goToPayment(context, vm) : null,
+      ),
       body: Column(
         children: [
           WeekCalendar(
@@ -66,7 +74,8 @@ class _BookingScheduleView extends StatelessWidget {
           const SlotLegend(),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+              // No extra bottom padding needed — the nav bar handles the gap.
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               children: vm.facility.courts
                   .map((court) => CourtSlotGrid(
                 court: court,
@@ -90,17 +99,10 @@ class _BookingScheduleView extends StatelessWidget {
           ),
         ],
       ),
-      bottomSheet: CheckoutBottomBar(
-        selectedSlots: vm.selectedSlots,
-        formattedDate: vm.formattedDate,
-        grandTotal: vm.grandTotal,
-        onCheckout: vm.hasSelection ? () => _goToPayment(context, vm) : null,
-      ),
     );
   }
 
-  void _goToPayment(
-      BuildContext context, BookingScheduleViewModel vm) {
+  void _goToPayment(BuildContext context, BookingScheduleViewModel vm) {
     final items = vm.selectedSlots.values
         .map((s) => PaymentItem(
       facilityName: vm.facility.name,

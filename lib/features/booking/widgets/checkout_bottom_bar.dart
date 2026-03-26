@@ -25,36 +25,70 @@ class CheckoutBottomBar extends StatelessWidget {
     final slots = selectedSlots.values.toList();
     final hasSelection = slots.isNotEmpty;
 
+    // Group slots by courtId so each court gets its own row
+    final Map<String, List<SelectedSlot>> byCourt = {};
+    for (final s in slots) {
+      byCourt.putIfAbsent(s.courtId, () => []).add(s);
+    }
+
     return Container(
       color: Colors.white,
+      // Cap height so the bar never swallows more than ~40% of the screen
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.40,
+      ),
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (hasSelection) ...[
-            Text(
-              'Facility: ${slots.first.courtName}',
-              style: const TextStyle(fontSize: 13),
-            ),
-            Text('Date: $formattedDate',
-                style: const TextStyle(fontSize: 13)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Time: ${slots.map((s) => s.slot.label).join(', ')}',
-                    style: const TextStyle(fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+            // Scrollable summary area
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Date: $formattedDate',
+                        style: const TextStyle(fontSize: 13)),
+                    const SizedBox(height: 4),
+                    // One row per court
+                    ...byCourt.entries.map((entry) {
+                      final courtSlots = entry.value;
+                      final courtName = courtSlots.first.courtName;
+                      final timeLabels =
+                      courtSlots.map((s) => s.slot.label).join(', ');
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('• ',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold)),
+                            Expanded(
+                              child: Text(
+                                '$courtName: $timeLabels',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        'Total: RM ${grandTotal.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  'Total: RM ${grandTotal.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 10),
           ],
@@ -72,8 +106,7 @@ class CheckoutBottomBar extends StatelessWidget {
               onPressed: hasSelection ? onCheckout : null,
               child: const Text(
                 'Checkout',
-                style:
-                TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
           ),
