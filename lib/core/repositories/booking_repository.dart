@@ -45,7 +45,9 @@ class BookingRepository {
     required int startHour,
     required int endHour,
   }) async {
-    final userId = supabase.auth.currentUser!.id;
+    // FIX: Use ?. instead of ! to avoid null check crash
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('User not signed in');
 
     final response = await supabase
         .from('bookings')
@@ -70,7 +72,9 @@ class BookingRepository {
     required double amount,
     required String method,
   }) async {
-    final userId = supabase.auth.currentUser!.id;
+    // FIX: Use ?. instead of ! to avoid null check crash
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('User not signed in');
 
     await supabase.from('payments').insert({
       'booking_id': bookingId,
@@ -83,10 +87,13 @@ class BookingRepository {
 
   /// Cancel a booking owned by the current user.
   Future<void> cancelBooking(String bookingId) async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('User not signed in');
+
     await supabase
         .from('bookings')
         .update({'status': 'cancelled'})
         .eq('id', bookingId)
-        .eq('user_id', supabase.auth.currentUser!.id);
+        .eq('user_id', userId);
   }
 }

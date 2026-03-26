@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/repositories/booking_repository.dart';
 import '../../core/repositories/facility_repository.dart';
 import '../../core/services/booking_service.dart';
+import 'booking_detail_screen.dart';
 import 'viewmodels/booking_view_model.dart';
 import 'widgets/booking_card.dart';
 
@@ -31,22 +32,12 @@ class _BookingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
-        children: [
-          const SizedBox(height: 10),
-          const Text(
-            'My Bookings',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1C894E),
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Expanded(child: _BookingList()),
-        ],
+      backgroundColor: const Color(0xFFF4FAF6),
+      appBar: AppBar(
+        title: const Text('My Bookings'),
+        backgroundColor: const Color(0xFFF4FAF6),
       ),
+      body: const _BookingList(),
     );
   }
 }
@@ -58,63 +49,67 @@ class _BookingList extends StatelessWidget {
   Widget build(BuildContext context) {
     final vm = context.watch<BookingViewModel>();
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFFC8DFC3),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
+    return switch (vm.status) {
+      BookingListStatus.initial ||
+      BookingListStatus.loading =>
+      const Center(child: CircularProgressIndicator()),
+      BookingListStatus.error => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text(
+              'Failed to load bookings',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () =>
+                  context.read<BookingViewModel>().loadBookings(),
+              child: const Text('Retry'),
+            ),
+          ],
         ),
       ),
-      child: switch (vm.status) {
-        BookingListStatus.initial ||
-        BookingListStatus.loading =>
-        const Center(child: CircularProgressIndicator()),
-        BookingListStatus.error => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.wifi_off, size: 48, color: Colors.grey),
-              const SizedBox(height: 12),
-              Text(
-                'Failed to load bookings',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () =>
-                    context.read<BookingViewModel>().loadBookings(),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
+      BookingListStatus.loaded => vm.bookings.isEmpty
+          ? const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.calendar_today_outlined,
+                size: 48, color: Colors.grey),
+            SizedBox(height: 12),
+            Text('No bookings yet',
+                style: TextStyle(color: Colors.grey)),
+          ],
         ),
-        BookingListStatus.loaded => vm.bookings.isEmpty
-            ? const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.calendar_today_outlined,
-                  size: 48, color: Colors.grey),
-              SizedBox(height: 12),
-              Text('No bookings yet',
-                  style: TextStyle(color: Colors.grey)),
-            ],
-          ),
-        )
-            : RefreshIndicator(
-          onRefresh: () =>
-              context.read<BookingViewModel>().loadBookings(),
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: vm.bookings.length,
-            itemBuilder: (_, i) => Padding(
+      )
+          : RefreshIndicator(
+        onRefresh: () =>
+            context.read<BookingViewModel>().loadBookings(),
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: vm.bookings.length,
+          itemBuilder: (_, i) {
+            final item = vm.bookings[i];
+            return Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: BookingCard(item: vm.bookings[i]),
-            ),
-          ),
+              child: GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BookingDetailScreen(
+                      bookingWithFacility: item,
+                    ),
+                  ),
+                ),
+                child: BookingCard(item: item),
+              ),
+            );
+          },
         ),
-      },
-    );
+      ),
+    };
   }
 }

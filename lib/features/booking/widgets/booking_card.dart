@@ -35,36 +35,63 @@ class BookingCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          FacilityThumb(imageUrl: item.imageUrl),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.facilityName,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1C3A2A),
+          // Left thumbnail image
+          SizedBox(
+            width: 100,
+            height: 100,
+            child: FacilityThumb(imageUrl: item.imageUrl, height: 100),
+          ),
+          // Right content
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.facilityName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1C3A2A),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 6),
-                _InfoRow(
-                    icon: Icons.calendar_today_outlined,
-                    text: formattedDate),
-                const SizedBox(height: 4),
-                _InfoRow(
-                    icon: Icons.access_time_outlined, text: formattedTime),
-                const SizedBox(height: 8),
-                _StatusBadge(label: statusLabel, color: statusColor),
-              ],
+                  const SizedBox(height: 6),
+                  _InfoRow(
+                      icon: Icons.calendar_today_outlined,
+                      text: 'Date: $formattedDate'),
+                  const SizedBox(height: 3),
+                  _InfoRow(
+                      icon: Icons.access_time_outlined,
+                      text: 'Time: $formattedTime'),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _StatusBadge(
+                          label: 'Status: $statusLabel',
+                          color: statusColor),
+                      const Icon(Icons.chevron_right,
+                          color: Colors.grey, size: 18),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -93,10 +120,16 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: Colors.grey),
-        const SizedBox(width: 6),
-        Text(text,
-            style: const TextStyle(fontSize: 13, color: Colors.black87)),
+        Icon(icon, size: 12, color: Colors.grey),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }
@@ -110,7 +143,7 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(20),
@@ -120,7 +153,7 @@ class _StatusBadge extends StatelessWidget {
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.bold,
-          fontSize: 12,
+          fontSize: 11,
         ),
       ),
     );
