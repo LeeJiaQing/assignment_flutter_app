@@ -2,7 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/repositories/facility_repository.dart';
+import '../../core/repositories/offline_facility_repository.dart';
+import '../../core/widgets/offline_banner.dart';
 import 'viewmodels/facility_view_model.dart';
 import 'widgets/facility_card.dart';
 import 'widgets/facility_search_bar.dart';
@@ -14,7 +15,7 @@ class FacilityScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) =>
-      FacilityViewModel(facilityRepository: FacilityRepository())
+      FacilityViewModel(facilityRepository: OfflineFacilityRepository())
         ..loadFacilities(),
       child: const _FacilityView(),
     );
@@ -29,18 +30,20 @@ class _FacilityView extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF4FAF6),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            FacilitySearchBar(
-              onChanged: (q) =>
-                  context.read<FacilityViewModel>().updateQuery(q),
-              onCleared: () =>
-                  context.read<FacilityViewModel>().clearQuery(),
-            ),
-            const Expanded(child: _FacilityList()),
-          ],
+        child: WithOfflineBanner(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              FacilitySearchBar(
+                onChanged: (q) =>
+                    context.read<FacilityViewModel>().updateQuery(q),
+                onCleared: () =>
+                    context.read<FacilityViewModel>().clearQuery(),
+              ),
+              const Expanded(child: _FacilityList()),
+            ],
+          ),
         ),
       ),
     );
@@ -99,7 +102,8 @@ class _FacilityList extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             TextButton(
-              onPressed: () => context.read<FacilityViewModel>().loadFacilities(),
+              onPressed: () =>
+                  context.read<FacilityViewModel>().loadFacilities(),
               child: const Text('Retry'),
             ),
           ],
@@ -111,8 +115,8 @@ class _FacilityList extends StatelessWidget {
 
     if (facilities.isEmpty) {
       return const Center(
-        child: Text('No facilities found.',
-            style: TextStyle(color: Colors.grey)),
+        child:
+        Text('No facilities found.', style: TextStyle(color: Colors.grey)),
       );
     }
 

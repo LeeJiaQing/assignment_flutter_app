@@ -2,7 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/local/local_database.dart';
 import 'core/repositories/auth_repository.dart';
+import 'core/repositories/offline_booking_repository.dart';
+import 'core/services/connectivity_service.dart';
+import 'core/services/sync_service.dart';
 import 'core/supabase/supabase_config.dart';
 import 'features/admin/create_facility_screen.dart';
 import 'features/admin/edit_facility_screen.dart';
@@ -18,7 +22,22 @@ import 'features/rewardPoints/rewardpoints_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 1. Supabase
   await SupabaseConfig.init();
+
+  // 2. SQLite — initialise FFI on Windows/Linux, then warm up the connection
+  LocalDatabase.initFfiIfNeeded();
+  await LocalDatabase.instance.database;
+
+  // 3. Connectivity monitoring
+  ConnectivityService.instance.startMonitoring();
+
+  // 4. Background sync service (syncs pending bookings on reconnect)
+  SyncService.instance.init(
+    bookingRepository: OfflineBookingRepository(),
+  );
+
   runApp(const MainApp());
 }
 
@@ -54,9 +73,6 @@ class MainApp extends StatelessWidget {
           useMaterial3: true,
         ),
         home: const MainNavigation(),
-        // Named routes for deep navigation from profile menu items,
-        // admin dashboard etc. Screens that need arguments use
-        // Navigator.push directly with MaterialPageRoute.
         routes: {
           '/bookings': (_) => const BookingScreen(),
           '/rewards': (_) => const RewardPointsScreen(),
@@ -67,7 +83,6 @@ class MainApp extends StatelessWidget {
           '/party/create': (_) => const CreatePartyScreen(),
           '/admin/facility/create': (_) => const CreateFacilityScreen(),
         },
-        // Routes that require arguments are handled with onGenerateRoute.
         onGenerateRoute: (settings) {
           switch (settings.name) {
             case '/admin/facility/edit':

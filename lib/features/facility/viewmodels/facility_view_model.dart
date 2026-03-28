@@ -1,16 +1,16 @@
 // lib/features/facility/viewmodels/facility_view_model.dart
 import 'package:flutter/material.dart';
 
-import '../../../../../core/repositories/facility_repository.dart';
+import '../../../../../core/repositories/offline_facility_repository.dart';
 import '../../../../../models/facility_model.dart';
 
 enum FacilityStatus { initial, loading, loaded, error }
 
 class FacilityViewModel extends ChangeNotifier {
-  FacilityViewModel({required FacilityRepository facilityRepository})
+  FacilityViewModel({required OfflineFacilityRepository facilityRepository})
       : _repo = facilityRepository;
 
-  final FacilityRepository _repo;
+  final OfflineFacilityRepository _repo;
 
   FacilityStatus _status = FacilityStatus.initial;
   List<Facility> _facilities = [];

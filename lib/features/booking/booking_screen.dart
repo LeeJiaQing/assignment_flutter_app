@@ -2,9 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/repositories/booking_repository.dart';
-import '../../core/repositories/facility_repository.dart';
-import '../../core/services/booking_service.dart';
+import '../../core/repositories/offline_booking_repository.dart';
+import '../../core/repositories/offline_facility_repository.dart';
+import '../../core/services/booking_service_offline.dart';
+import '../../core/widgets/offline_banner.dart';
 import 'booking_detail_screen.dart';
 import 'viewmodels/booking_view_model.dart';
 import 'widgets/booking_card.dart';
@@ -16,9 +17,9 @@ class BookingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => BookingViewModel(
-        bookingService: BookingService(
-          bookingRepository: BookingRepository(),
-          facilityRepository: FacilityRepository(),
+        bookingService: OfflineBookingService(
+          bookingRepository: OfflineBookingRepository(),
+          facilityRepository: OfflineFacilityRepository(),
         ),
       )..loadBookings(),
       child: const _BookingView(),
@@ -37,7 +38,7 @@ class _BookingView extends StatelessWidget {
         title: const Text('My Bookings'),
         backgroundColor: const Color(0xFFF4FAF6),
       ),
-      body: const _BookingList(),
+      body: WithOfflineBanner(child: const _BookingList()),
     );
   }
 }
