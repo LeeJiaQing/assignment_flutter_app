@@ -39,12 +39,18 @@ class AuthRepository {
 
     final user = response.user;
     if (user != null) {
-      await supabase.from('profiles').upsert({
-        'id': user.id,
-        'email': email,
-        'full_name': fullName,
-        'role': 'user',
-      });
+      try {
+        await supabase.from('profiles').upsert({
+          'id': user.id,
+          'email': email,
+          'full_name': fullName,
+          'role': 'user',
+        });
+      } catch (_) {
+        // Some projects enforce strict RLS during sign-up (especially when
+        // email confirmation is enabled and session is not yet active).
+        // Profile bootstrap can be retried later after a verified sign-in.
+      }
     }
   }
 

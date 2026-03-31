@@ -96,6 +96,15 @@ class LoginViewModel extends ChangeNotifier {
     if (message.contains('Email not confirmed')) {
       return 'Please verify your email before signing in.';
     }
-    return 'Authentication failed. Please try again.';
+    if (message.contains('User already registered')) {
+      return 'This email is already registered. Please sign in instead.';
+    }
+    if (message.contains('Password should be at least')) {
+      return 'Password is too weak. Please use at least 6 characters.';
+    }
+    if (message.contains('Unable to validate email address')) {
+      return 'Invalid email format.';
+    }
+    return 'Authentication failed: $message';
   }
 }
