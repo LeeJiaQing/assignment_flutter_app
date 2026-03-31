@@ -105,6 +105,9 @@ class LoginViewModel extends ChangeNotifier {
     if (message.contains('Unable to validate email address')) {
       return 'Invalid email format.';
     }
+    if (message.contains('email rate limit exceeded')) {
+      return 'Too many verification emails were sent. Please wait a few minutes before signing up again.';
+    }
     return 'Authentication failed: $message';
   }
 }
