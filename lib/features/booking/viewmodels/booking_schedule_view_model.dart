@@ -114,7 +114,7 @@ class BookingScheduleViewModel extends ChangeNotifier {
       _selectedSlots.removeWhere(
         (_, selected) => selected.slot.effectiveStatus(now) == SlotStatus.expired,
       );
-      if (_selectedSlots.length != before) {
+      if (_selectedSlots.length != before || isToday(_selectedDate)) {
         notifyListeners();
       }
     });
