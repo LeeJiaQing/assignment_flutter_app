@@ -20,7 +20,7 @@ class TimeSlot {
   /// Recompute expired status relative to [now].
   SlotStatus effectiveStatus(DateTime now) {
     if (status == SlotStatus.booked) return SlotStatus.booked;
-    if (start.isBefore(now)) return SlotStatus.expired;
+    if (!start.isAfter(now)) return SlotStatus.expired;
     return SlotStatus.available;
   }
 }
