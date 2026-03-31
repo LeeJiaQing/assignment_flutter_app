@@ -78,13 +78,22 @@ class OfflineFacilityRepository {
     return all.where((f) => ids.contains(f.id)).toList();
   }
 
-  Future<Facility> createFacility(Map<String, dynamic> data) =>
-      _remote.createFacility(data);
+  Future<Facility> createFacility(Map<String, dynamic> data) async {
+    final facility = await _remote.createFacility(data);
+    await _cache.saveFacilities([facility]);
+    return facility;
+  }
 
-  Future<Facility> updateFacility(String id, Map<String, dynamic> data) =>
-      _remote.updateFacility(id, data);
+  Future<Facility> updateFacility(String id, Map<String, dynamic> data) async {
+    final facility = await _remote.updateFacility(id, data);
+    await _cache.saveFacilities([facility]);
+    return facility;
+  }
 
-  Future<void> deleteFacility(String id) => _remote.deleteFacility(id);
+  Future<void> deleteFacility(String id) async {
+    await _remote.deleteFacility(id);
+    await _cache.clearFacility(id);
+  }
 
   /// Returns a local file path for an image if cached, otherwise the remote
   /// URL. Callers can pass either to Image.file / Image.network.

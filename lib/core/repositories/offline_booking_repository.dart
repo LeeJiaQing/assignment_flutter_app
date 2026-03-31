@@ -79,6 +79,7 @@ class OfflineBookingRepository {
           amount: amount,
           method: paymentMethod,
         );
+        await _cache.saveBookings([booking]);
         return BookingResult.online(booking);
       } catch (e) {
         rethrow;

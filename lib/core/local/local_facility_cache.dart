@@ -121,4 +121,12 @@ class LocalFacilityCache {
       await txn.delete('facilities');
     });
   }
+
+  Future<void> clearFacility(String id) async {
+    final db = await _db.database;
+    await db.transaction((txn) async {
+      await txn.delete('courts', where: 'facility_id = ?', whereArgs: [id]);
+      await txn.delete('facilities', where: 'id = ?', whereArgs: [id]);
+    });
+  }
 }

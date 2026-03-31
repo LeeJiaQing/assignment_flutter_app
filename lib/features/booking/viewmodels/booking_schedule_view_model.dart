@@ -1,4 +1,6 @@
 // lib/features/booking/viewmodels/booking_schedule_view_model.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../../core/services/booking_service.dart';
@@ -22,6 +24,7 @@ class SelectedSlot {
 enum ScheduleStatus { initial, loading, loaded, error }
 
 class BookingScheduleViewModel extends ChangeNotifier {
+  Timer? _clockTimer;
   BookingScheduleViewModel({
     required BookingService bookingService,
     required Facility facility,
@@ -29,6 +32,7 @@ class BookingScheduleViewModel extends ChangeNotifier {
         _facility = facility {
     _selectedDate = _today();
     _weekStart = _mondayOf(_selectedDate);
+    _startClock();
   }
 
   final BookingService _service;
@@ -40,6 +44,12 @@ class BookingScheduleViewModel extends ChangeNotifier {
   final Map<String, Set<int>> _bookedHoursCache = {};
   final Map<String, ScheduleStatus> _courtStatus = {};
   final Map<String, SelectedSlot> _selectedSlots = {};
+
+  @override
+  void dispose() {
+    _clockTimer?.cancel();
+    super.dispose();
+  }
 
   // ── Getters ───────────────────────────────────────────────────────────────
 
@@ -88,6 +98,17 @@ class BookingScheduleViewModel extends ChangeNotifier {
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return months[d.month - 1];
+  }
+
+  void _startClock() {
+    _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      final now = DateTime.now();
+      // Remove any selected slots that have now expired
+      _selectedSlots.removeWhere((_, selected) {
+        return selected.slot.effectiveStatus(now) == SlotStatus.expired;
+      });
+      notifyListeners();
+    });
   }
 
   // ── Slot generation ───────────────────────────────────────────────────────
