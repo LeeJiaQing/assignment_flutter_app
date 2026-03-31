@@ -31,11 +31,21 @@ class AuthRepository {
     required String password,
     required String fullName,
   }) async {
-    await supabase.auth.signUp(
+    final response = await supabase.auth.signUp(
       email: email,
       password: password,
       data: {'full_name': fullName},
     );
+
+    final user = response.user;
+    if (user != null) {
+      await supabase.from('profiles').upsert({
+        'id': user.id,
+        'email': email,
+        'full_name': fullName,
+        'role': 'user',
+      });
+    }
   }
 
   Future<void> signOut() async {
