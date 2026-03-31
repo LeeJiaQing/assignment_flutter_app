@@ -48,8 +48,13 @@ class _ProfileView extends StatelessWidget {
                   style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 12),
               ElevatedButton(
-                onPressed: () =>
-                    Navigator.pushNamed(context, '/auth/login'),
+                onPressed: () async {
+                  final loggedIn =
+                      await Navigator.pushNamed(context, '/auth/login');
+                  if (loggedIn == true && context.mounted) {
+                    await vm.loadProfile();
+                  }
+                },
                 child: const Text('Sign In'),
               ),
             ],

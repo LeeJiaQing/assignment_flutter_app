@@ -10,6 +10,7 @@ import 'core/services/sync_service.dart';
 import 'core/supabase/supabase_config.dart';
 import 'features/admin/create_facility_screen.dart';
 import 'features/admin/edit_facility_screen.dart';
+import 'features/auth/login_screen.dart';
 import 'features/booking/booking_screen.dart';
 import 'features/booking/create_party_screen.dart';
 import 'features/feedback/create_feedback_screen.dart';
@@ -82,6 +83,7 @@ class MainApp extends StatelessWidget {
           '/profile/edit': (_) => const EditProfileScreen(),
           '/party/create': (_) => const CreatePartyScreen(),
           '/admin/facility/create': (_) => const CreateFacilityScreen(),
+          '/auth/login': (_) => const LoginScreen(),
         },
         onGenerateRoute: (settings) {
           switch (settings.name) {
