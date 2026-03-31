@@ -1,11 +1,10 @@
-// lib/features/booking/viewmodels/booking_schedule_view_model.dart
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../../core/services/booking_service.dart';
-import '../../../../../models/booking_model.dart';
-import '../../../../../models/facility_model.dart';
+import '../../../core/services/booking_service.dart';
+import '../../../models/booking_model.dart';
+import '../../../models/facility_model.dart';
 
 const int kMaxSlotsPerDay = 2;
 
@@ -24,7 +23,6 @@ class SelectedSlot {
 enum ScheduleStatus { initial, loading, loaded, error }
 
 class BookingScheduleViewModel extends ChangeNotifier {
-  Timer? _clockTimer;
   BookingScheduleViewModel({
     required BookingService bookingService,
     required Facility facility,
@@ -37,6 +35,9 @@ class BookingScheduleViewModel extends ChangeNotifier {
 
   final BookingService _service;
   final Facility _facility;
+
+  Timer? _clockTimer;
+  int _loadVersion = 0;
 
   late DateTime _selectedDate;
   late DateTime _weekStart;
@@ -51,12 +52,11 @@ class BookingScheduleViewModel extends ChangeNotifier {
     super.dispose();
   }
 
-  // ── Getters ───────────────────────────────────────────────────────────────
-
   Facility get facility => _facility;
   DateTime get selectedDate => _selectedDate;
   DateTime get weekStart => _weekStart;
-  Map<String, SelectedSlot> get selectedSlots => Map.unmodifiable(_selectedSlots);
+  Map<String, SelectedSlot> get selectedSlots =>
+      Map.unmodifiable(_selectedSlots);
   bool get hasSelection => _selectedSlots.isNotEmpty;
   double get grandTotal => _selectedSlots.length * _facility.pricePerSlot;
 
@@ -69,15 +69,12 @@ class BookingScheduleViewModel extends ChangeNotifier {
         '${d.month.toString().padLeft(2, '0')}/${d.year}';
   }
 
-  // ── Date helpers ──────────────────────────────────────────────────────────
-
   DateTime _today() {
-    final n = DateTime.now();
-    return DateTime(n.year, n.month, n.day);
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
   }
 
-  DateTime _mondayOf(DateTime d) =>
-      d.subtract(Duration(days: d.weekday - 1));
+  DateTime _mondayOf(DateTime d) => d.subtract(Duration(days: d.weekday - 1));
 
   bool isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -94,8 +91,18 @@ class BookingScheduleViewModel extends ChangeNotifier {
 
   String fmtMonth(DateTime d) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return months[d.month - 1];
   }
@@ -103,58 +110,76 @@ class BookingScheduleViewModel extends ChangeNotifier {
   void _startClock() {
     _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       final now = DateTime.now();
-      // Remove any selected slots that have now expired
-      _selectedSlots.removeWhere((_, selected) {
-        return selected.slot.effectiveStatus(now) == SlotStatus.expired;
-      });
-      notifyListeners();
+      final before = _selectedSlots.length;
+      _selectedSlots.removeWhere(
+        (_, selected) => selected.slot.effectiveStatus(now) == SlotStatus.expired,
+      );
+      if (_selectedSlots.length != before || isToday(_selectedDate)) {
+        notifyListeners();
+      }
     });
   }
 
-  // ── Slot generation ───────────────────────────────────────────────────────
+  String _cacheKey(String courtId, DateTime date) {
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    return '$courtId-${normalizedDate.toIso8601String()}';
+  }
 
   List<TimeSlot> slotsForCourt(String courtId) {
-    final bookedHours = _bookedHoursCache[courtId] ?? {};
+    final bookedHours = _bookedHoursCache[_cacheKey(courtId, _selectedDate)] ?? {};
     return List.generate(
       _facility.closeHour - _facility.openHour,
-          (i) {
+      (i) {
         final h = _facility.openHour + i;
         return TimeSlot(
           courtId: courtId,
           date: _selectedDate,
           startHour: h,
           endHour: h + 1,
-          status: bookedHours.contains(h)
-              ? SlotStatus.booked
-              : SlotStatus.available,
+          status:
+              bookedHours.contains(h) ? SlotStatus.booked : SlotStatus.available,
         );
       },
     );
   }
 
-  // ── Data loading ──────────────────────────────────────────────────────────
-
   Future<void> loadBookedHoursForDate(DateTime date) async {
-    for (final court in _facility.courts) {
-      if (_courtStatus[court.id] == ScheduleStatus.loading) continue;
-      _courtStatus[court.id] = ScheduleStatus.loading;
-      notifyListeners();
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    final requestVersion = ++_loadVersion;
 
+    for (final court in _facility.courts) {
+      _courtStatus[court.id] = ScheduleStatus.loading;
+    }
+    notifyListeners();
+
+    final futures = _facility.courts.map((court) async {
       try {
-        final hours =
-        await _service.fetchBookedHours(courtId: court.id, date: date);
-        _bookedHoursCache[court.id] = hours;
+        final hours = await _service.fetchBookedHours(
+          courtId: court.id,
+          date: normalizedDate,
+        );
+
+        if (requestVersion != _loadVersion) {
+          return;
+        }
+
+        _bookedHoursCache[_cacheKey(court.id, normalizedDate)] = hours;
         _courtStatus[court.id] = ScheduleStatus.loaded;
       } catch (_) {
+        if (requestVersion != _loadVersion) {
+          return;
+        }
         _courtStatus[court.id] = ScheduleStatus.error;
       }
+    });
+
+    await Future.wait(futures);
+
+    if (requestVersion == _loadVersion) {
       notifyListeners();
     }
   }
 
-  // ── Selection ─────────────────────────────────────────────────────────────
-
-  /// Returns null on success, or an error message string.
   String? toggleSlot(Court court, TimeSlot slot) {
     final effective = slot.effectiveStatus(DateTime.now());
     if (effective != SlotStatus.available) return null;
@@ -180,13 +205,11 @@ class BookingScheduleViewModel extends ChangeNotifier {
 
   bool isSlotSelected(String slotId) => _selectedSlots.containsKey(slotId);
 
-  // ── Navigation ────────────────────────────────────────────────────────────
-
   void selectDate(DateTime date) {
-    _selectedDate = date;
+    _selectedDate = DateTime(date.year, date.month, date.day);
     _selectedSlots.clear();
     notifyListeners();
-    loadBookedHoursForDate(date);
+    loadBookedHoursForDate(_selectedDate);
   }
 
   void previousWeek() {
