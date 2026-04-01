@@ -1,8 +1,8 @@
 // lib/features/notification/viewmodels/notification_view_model.dart
 import 'package:flutter/material.dart';
 
-import '../../../../../core/supabase/supabase_config.dart';
-import '../../../../../models/notification_model.dart';
+import '../../../core/supabase/supabase_config.dart';
+import '../../../models/notification_model.dart';
 
 enum NotificationStatus { initial, loading, loaded, error }
 

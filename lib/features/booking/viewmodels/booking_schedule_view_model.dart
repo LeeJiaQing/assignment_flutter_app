@@ -1,3 +1,4 @@
+// lib/features/booking/viewmodels/booking_schedule_view_model.dart
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -23,6 +24,8 @@ class SelectedSlot {
 enum ScheduleStatus { initial, loading, loaded, error }
 
 class BookingScheduleViewModel extends ChangeNotifier {
+  Timer? _clockTimer;
+
   BookingScheduleViewModel({
     required BookingService bookingService,
     required Facility facility,
@@ -36,9 +39,6 @@ class BookingScheduleViewModel extends ChangeNotifier {
   final BookingService _service;
   final Facility _facility;
 
-  Timer? _clockTimer;
-  int _loadVersion = 0;
-
   late DateTime _selectedDate;
   late DateTime _weekStart;
 
@@ -51,6 +51,8 @@ class BookingScheduleViewModel extends ChangeNotifier {
     _clockTimer?.cancel();
     super.dispose();
   }
+
+  // ── Getters ───────────────────────────────────────────────────────────────
 
   Facility get facility => _facility;
   DateTime get selectedDate => _selectedDate;
@@ -69,12 +71,15 @@ class BookingScheduleViewModel extends ChangeNotifier {
         '${d.month.toString().padLeft(2, '0')}/${d.year}';
   }
 
+  // ── Date helpers ──────────────────────────────────────────────────────────
+
   DateTime _today() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day);
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
   }
 
-  DateTime _mondayOf(DateTime d) => d.subtract(Duration(days: d.weekday - 1));
+  DateTime _mondayOf(DateTime d) =>
+      d.subtract(Duration(days: d.weekday - 1));
 
   bool isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -102,7 +107,7 @@ class BookingScheduleViewModel extends ChangeNotifier {
       'September',
       'October',
       'November',
-      'December',
+      'December'
     ];
     return months[d.month - 1];
   }
@@ -110,23 +115,17 @@ class BookingScheduleViewModel extends ChangeNotifier {
   void _startClock() {
     _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       final now = DateTime.now();
-      final before = _selectedSlots.length;
-      _selectedSlots.removeWhere(
-        (_, selected) => selected.slot.effectiveStatus(now) == SlotStatus.expired,
-      );
-      if (_selectedSlots.length != before || isToday(_selectedDate)) {
-        notifyListeners();
-      }
+      _selectedSlots.removeWhere((_, selected) {
+        return selected.slot.effectiveStatus(now) == SlotStatus.expired;
+      });
+      notifyListeners();
     });
   }
 
-  String _cacheKey(String courtId, DateTime date) {
-    final normalizedDate = DateTime(date.year, date.month, date.day);
-    return '$courtId-${normalizedDate.toIso8601String()}';
-  }
+  // ── Slot generation ───────────────────────────────────────────────────────
 
   List<TimeSlot> slotsForCourt(String courtId) {
-    final bookedHours = _bookedHoursCache[_cacheKey(courtId, _selectedDate)] ?? {};
+    final bookedHours = _bookedHoursCache[courtId] ?? {};
     return List.generate(
       _facility.closeHour - _facility.openHour,
       (i) {
@@ -136,49 +135,35 @@ class BookingScheduleViewModel extends ChangeNotifier {
           date: _selectedDate,
           startHour: h,
           endHour: h + 1,
-          status:
-              bookedHours.contains(h) ? SlotStatus.booked : SlotStatus.available,
+          status: bookedHours.contains(h)
+              ? SlotStatus.booked
+              : SlotStatus.available,
         );
       },
     );
   }
 
+  // ── Data loading ──────────────────────────────────────────────────────────
+
   Future<void> loadBookedHoursForDate(DateTime date) async {
-    final normalizedDate = DateTime(date.year, date.month, date.day);
-    final requestVersion = ++_loadVersion;
-
     for (final court in _facility.courts) {
+      if (_courtStatus[court.id] == ScheduleStatus.loading) continue;
       _courtStatus[court.id] = ScheduleStatus.loading;
-    }
-    notifyListeners();
+      notifyListeners();
 
-    final futures = _facility.courts.map((court) async {
       try {
         final hours = await _service.fetchBookedHours(
-          courtId: court.id,
-          date: normalizedDate,
-        );
-
-        if (requestVersion != _loadVersion) {
-          return;
-        }
-
-        _bookedHoursCache[_cacheKey(court.id, normalizedDate)] = hours;
+            courtId: court.id, date: date);
+        _bookedHoursCache[court.id] = hours;
         _courtStatus[court.id] = ScheduleStatus.loaded;
       } catch (_) {
-        if (requestVersion != _loadVersion) {
-          return;
-        }
         _courtStatus[court.id] = ScheduleStatus.error;
       }
-    });
-
-    await Future.wait(futures);
-
-    if (requestVersion == _loadVersion) {
       notifyListeners();
     }
   }
+
+  // ── Selection ─────────────────────────────────────────────────────────────
 
   String? toggleSlot(Court court, TimeSlot slot) {
     final effective = slot.effectiveStatus(DateTime.now());
@@ -205,11 +190,13 @@ class BookingScheduleViewModel extends ChangeNotifier {
 
   bool isSlotSelected(String slotId) => _selectedSlots.containsKey(slotId);
 
+  // ── Navigation ────────────────────────────────────────────────────────────
+
   void selectDate(DateTime date) {
-    _selectedDate = DateTime(date.year, date.month, date.day);
+    _selectedDate = date;
     _selectedSlots.clear();
     notifyListeners();
-    loadBookedHoursForDate(_selectedDate);
+    loadBookedHoursForDate(date);
   }
 
   void previousWeek() {

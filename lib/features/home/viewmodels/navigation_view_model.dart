@@ -25,31 +25,31 @@ class NavigationViewModel extends ChangeNotifier {
 
   List<BottomNavigationBarItem> get items => isAdmin
       ? const [
-    BottomNavigationBarItem(
-        icon: Icon(Icons.home), label: 'Home'),
-    BottomNavigationBarItem(
-        icon: Icon(Icons.stadium_outlined), label: 'Facility'),
-    BottomNavigationBarItem(
-        icon: Icon(Icons.sports_soccer), label: 'Party'),
-    BottomNavigationBarItem(
-        icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
-    BottomNavigationBarItem(
-        icon: Icon(Icons.qr_code_scanner), label: 'QR Scanner'),
-    BottomNavigationBarItem(
-        icon: Icon(Icons.person), label: 'Profile'),
-  ]
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.stadium_outlined), label: 'Facility'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.sports_soccer), label: 'Party'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.qr_code_scanner), label: 'QR Scanner'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person), label: 'Profile'),
+        ]
       : const [
-    BottomNavigationBarItem(
-        icon: Icon(Icons.home), label: 'Home'),
-    BottomNavigationBarItem(
-        icon: Icon(Icons.stadium_outlined), label: 'Facility'),
-    BottomNavigationBarItem(
-        icon: Icon(Icons.sports_soccer), label: 'Party'),
-    BottomNavigationBarItem(
-        icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
-    BottomNavigationBarItem(
-        icon: Icon(Icons.person), label: 'Profile'),
-  ];
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.stadium_outlined), label: 'Facility'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.sports_soccer), label: 'Party'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person), label: 'Profile'),
+        ];
 
   void setTab(int index) {
     _currentIndex = index;

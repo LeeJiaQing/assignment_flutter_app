@@ -1,8 +1,8 @@
 // lib/features/facility/viewmodels/facility_view_model.dart
 import 'package:flutter/material.dart';
 
-import '../../../../../core/repositories/offline_facility_repository.dart';
-import '../../../../../models/facility_model.dart';
+import '../../../core/repositories/offline_facility_repository.dart';
+import '../../../models/facility_model.dart';
 
 enum FacilityStatus { initial, loading, loaded, error }
 

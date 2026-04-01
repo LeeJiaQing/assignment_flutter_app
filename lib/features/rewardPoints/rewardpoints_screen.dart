@@ -30,57 +30,99 @@ class _RewardPointsView extends StatelessWidget {
       body: switch (vm.status) {
         RewardStatus.initial ||
         RewardStatus.loading =>
-        const Center(child: CircularProgressIndicator()),
+          const Center(child: CircularProgressIndicator()),
         RewardStatus.error => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline,
-                  size: 48, color: Colors.grey),
-              const SizedBox(height: 12),
-              Text(
-                vm.errorMessage ?? 'Failed to load rewards',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-              TextButton(
-                onPressed: () =>
-                    context.read<RewardPointsViewModel>().loadRewards(),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-        RewardStatus.loaded => Column(
-          children: [
-            _PointsBanner(points: vm.totalPoints),
-            const SizedBox(height: 8),
-            Expanded(
-              child: vm.transactions.isEmpty
-                  ? const Center(
-                child: Text(
-                  'No transactions yet.\nStart booking to earn points!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                const SizedBox(height: 12),
+                Text(
+                  vm.errorMessage ?? 'Failed to load rewards',
+                  style: TextStyle(color: Colors.grey.shade600),
                 ),
-              )
-                  : RefreshIndicator(
-                onRefresh: () => context
-                    .read<RewardPointsViewModel>()
-                    .loadRewards(),
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: vm.transactions.length,
-                  separatorBuilder: (_, __) =>
-                  const Divider(height: 1, indent: 72),
-                  itemBuilder: (_, i) => RewardTransactionTile(
-                    transaction: vm.transactions[i],
+                TextButton(
+                  onPressed: () =>
+                      context.read<RewardPointsViewModel>().loadRewards(),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        RewardStatus.loaded => Column(
+            children: [
+              _PointsBanner(points: vm.totalPoints),
+              // How to earn/redeem info
+              _InfoCard(),
+              const SizedBox(height: 8),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Transaction History',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Color(0xFF1C3A2A)),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
+              Expanded(
+                child: vm.transactions.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No transactions yet.\nStart booking to earn points!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: () =>
+                            context.read<RewardPointsViewModel>().loadRewards(),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          itemCount: vm.transactions.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1, indent: 72),
+                          itemBuilder: (_, i) => RewardTransactionTile(
+                            transaction: vm.transactions[i],
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          ),
       },
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD6F0E0),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.info_outline, color: Color(0xFF1C894E), size: 18),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Earn 1 pt per RM 1 spent. Redeem 100 pts = RM 1 discount at checkout.',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF1C3A2A),
+                  height: 1.4),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -126,9 +168,9 @@ class _PointsBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Earn points with every booking',
-            style: TextStyle(color: Colors.white60, fontSize: 12),
+          Text(
+            '≈ RM ${(points / 100).toStringAsFixed(2)} discount value',
+            style: const TextStyle(color: Colors.white60, fontSize: 12),
           ),
         ],
       ),
