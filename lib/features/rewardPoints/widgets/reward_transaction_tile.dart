@@ -14,16 +14,14 @@ class RewardTransactionTile extends StatelessWidget {
 
     return ListTile(
       contentPadding:
-      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: CircleAvatar(
         backgroundColor: isEarned
             ? const Color(0xFFD6F0E0)
             : const Color(0xFFFFE5E5),
         child: Icon(
           isEarned ? Icons.add : Icons.remove,
-          color: isEarned
-              ? const Color(0xFF1C894E)
-              : Colors.red.shade400,
+          color: isEarned ? const Color(0xFF1C894E) : Colors.red.shade400,
           size: 20,
         ),
       ),
@@ -38,9 +36,7 @@ class RewardTransactionTile extends StatelessWidget {
       trailing: Text(
         '${isEarned ? '+' : ''}${transaction.points} pts',
         style: TextStyle(
-          color: isEarned
-              ? const Color(0xFF1C894E)
-              : Colors.red.shade400,
+          color: isEarned ? const Color(0xFF1C894E) : Colors.red.shade400,
           fontWeight: FontWeight.bold,
           fontSize: 14,
         ),

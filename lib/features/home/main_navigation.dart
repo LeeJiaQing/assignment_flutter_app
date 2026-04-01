@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/repositories/auth_repository.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../admin/qr_scanner_screen.dart';
 import '../chat/realtime_chat_screen.dart';
@@ -17,6 +18,19 @@ class MainNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => NavigationViewModel(authRepository: AuthRepository())
+        ..initialize(),
+      child: const _MainNavigationView(),
+    );
+  }
+}
+
+class _MainNavigationView extends StatelessWidget {
+  const _MainNavigationView();
+
+  @override
+  Widget build(BuildContext context) {
     final vm = context.watch<NavigationViewModel>();
 
     if (vm.isLoading) {
@@ -29,20 +43,20 @@ class MainNavigation extends StatelessWidget {
 
     final pages = vm.isAdmin
         ? const [
-      AdminDashboardScreen(),
-      FacilityScreen(),
-      PartyScreen(),
-      RealtimeChatScreen(),
-      QrScannerScreen(),
-      ProfileScreen(),
-    ]
+            AdminDashboardScreen(),
+            FacilityScreen(),
+            PartyScreen(),
+            RealtimeChatScreen(),
+            QrScannerScreen(),
+            ProfileScreen(),
+          ]
         : const [
-      HomePage(),
-      FacilityScreen(),
-      PartyScreen(),
-      RealtimeChatScreen(),
-      ProfileScreen(),
-    ];
+            HomePage(),
+            FacilityScreen(),
+            PartyScreen(),
+            RealtimeChatScreen(),
+            ProfileScreen(),
+          ];
 
     return Scaffold(
       appBar: AppBar(

@@ -53,8 +53,6 @@ class _BookingScheduleView extends StatelessWidget {
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-      // bottomNavigationBar reserves its own space — the body will never
-      // slide under it, unlike bottomSheet which floats on top.
       bottomNavigationBar: CheckoutBottomBar(
         selectedSlots: vm.selectedSlots,
         formattedDate: vm.formattedDate,
@@ -74,26 +72,25 @@ class _BookingScheduleView extends StatelessWidget {
           const SlotLegend(),
           Expanded(
             child: ListView(
-              // No extra bottom padding needed — the nav bar handles the gap.
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               children: vm.facility.courts
                   .map((court) => CourtSlotGrid(
-                court: court,
-                slots: vm.slotsForCourt(court.id),
-                isLoading: vm.isCourtLoading(court.id),
-                isSlotSelected: vm.isSlotSelected,
-                onSlotTap: (court, slot) {
-                  final error = vm.toggleSlot(court, slot);
-                  if (error != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(error),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                },
-              ))
+                        court: court,
+                        slots: vm.slotsForCourt(court.id),
+                        isLoading: vm.isCourtLoading(court.id),
+                        isSlotSelected: vm.isSlotSelected,
+                        onSlotTap: (court, slot) {
+                          final error = vm.toggleSlot(court, slot);
+                          if (error != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(error),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                      ))
                   .toList(),
             ),
           ),
@@ -105,18 +102,18 @@ class _BookingScheduleView extends StatelessWidget {
   void _goToPayment(BuildContext context, BookingScheduleViewModel vm) {
     final items = vm.selectedSlots.values
         .map((s) => PaymentItem(
-      facilityName: vm.facility.name,
-      facilityId: vm.facility.id,
-      courtId: s.courtId,
-      courtName: s.courtName,
-      imageUrl: vm.facility.imageUrl,
-      date: vm.selectedDate,
-      formattedDate: vm.formattedDate,
-      startHour: s.slot.startHour,
-      endHour: s.slot.endHour,
-      timeLabel: s.slot.label,
-      pricePerSlot: vm.facility.pricePerSlot,
-    ))
+              facilityName: vm.facility.name,
+              facilityId: vm.facility.id,
+              courtId: s.courtId,
+              courtName: s.courtName,
+              imageUrl: vm.facility.imageUrl,
+              date: vm.selectedDate,
+              formattedDate: vm.formattedDate,
+              startHour: s.slot.startHour,
+              endHour: s.slot.endHour,
+              timeLabel: s.slot.label,
+              pricePerSlot: vm.facility.pricePerSlot,
+            ))
         .toList();
 
     Navigator.push(

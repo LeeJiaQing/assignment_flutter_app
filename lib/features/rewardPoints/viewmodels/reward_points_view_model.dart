@@ -73,4 +73,69 @@ class RewardPointsViewModel extends ChangeNotifier {
 
     notifyListeners();
   }
+
+  /// Earn points after a successful payment.
+  /// Awards 1 point per RM 1 spent (rounded down).
+  static Future<void> earnPoints({
+    required double amount,
+    required String description,
+  }) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final points = amount.floor(); // 1 point per RM 1
+      if (points <= 0) return;
+
+      await supabase.from('reward_transactions').insert({
+        'user_id': userId,
+        'points': points,
+        'description': description,
+      });
+    } catch (e) {
+      // Silently fail — don't block payment flow
+      debugPrint('RewardPoints.earnPoints error: $e');
+    }
+  }
+
+  /// Redeem points for a discount. 100 points = RM 1.
+  /// Returns true if redemption succeeded.
+  static Future<bool> redeemPoints({
+    required int points,
+    required String description,
+  }) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return false;
+
+      await supabase.from('reward_transactions').insert({
+        'user_id': userId,
+        'points': -points, // negative = redemption
+        'description': description,
+      });
+      return true;
+    } catch (e) {
+      debugPrint('RewardPoints.redeemPoints error: $e');
+      return false;
+    }
+  }
+
+  /// Get total available points for current user.
+  static Future<int> getAvailablePoints() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return 0;
+
+      final response = await supabase
+          .from('reward_transactions')
+          .select('points')
+          .eq('user_id', userId);
+
+      final total = (response as List<dynamic>)
+          .fold<int>(0, (sum, row) => sum + (row['points'] as int));
+      return total < 0 ? 0 : total;
+    } catch (_) {
+      return 0;
+    }
+  }
 }
