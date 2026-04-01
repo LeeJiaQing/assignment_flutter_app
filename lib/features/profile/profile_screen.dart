@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/repositories/auth_repository.dart';
+import '../../core/supabase/supabase_config.dart';
 import 'viewmodels/profile_view_model.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_menu_item.dart';
@@ -14,8 +15,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) =>
-      ProfileViewModel(authRepository: AuthRepository())
-        ..loadProfile(),
+          ProfileViewModel(authRepository: AuthRepository())..loadProfile(),
       child: const _ProfileView(),
     );
   }
@@ -35,6 +35,7 @@ class _ProfileView extends StatelessWidget {
       );
     }
 
+    // Not signed in
     if (vm.profile == null) {
       return Scaffold(
         body: Center(
@@ -48,13 +49,8 @@ class _ProfileView extends StatelessWidget {
                   style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 12),
               ElevatedButton(
-                onPressed: () async {
-                  final loggedIn =
-                      await Navigator.pushNamed(context, '/auth/login');
-                  if (loggedIn == true && context.mounted) {
-                    await vm.loadProfile();
-                  }
-                },
+                onPressed: () =>
+                    Navigator.pushReplacementNamed(context, '/login'),
                 child: const Text('Sign In'),
               ),
             ],
@@ -148,6 +144,10 @@ class _ProfileView extends StatelessWidget {
 
     if (confirmed == true) {
       await vm.signOut();
+      if (!context.mounted) return;
+      // Redirect to login after sign out
+      Navigator.pushNamedAndRemoveUntil(
+          context, '/login', (route) => false);
     }
   }
 }

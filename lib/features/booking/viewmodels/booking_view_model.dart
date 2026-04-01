@@ -1,7 +1,7 @@
 // lib/features/booking/viewmodels/booking_view_model.dart
 import 'package:flutter/material.dart';
 
-import '../../../../../core/services/booking_service.dart';
+import '../../../core/services/booking_service.dart';
 
 enum BookingListStatus { initial, loading, loaded, error }
 
