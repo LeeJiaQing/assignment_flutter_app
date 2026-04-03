@@ -70,10 +70,6 @@ class AuthViewModel extends ChangeNotifier {
         raw.contains('already registered')) {
       return 'This email is already registered. Please login instead.';
     }
-    if (raw.contains('database error saving new user') ||
-        raw.contains('Database error saving new user')) {
-      return 'Registration failed — please run the database migration in Supabase SQL Editor first. See CHANGES.md.';
-    }
     if (raw.contains('Email not confirmed')) {
       return 'Please check your email and confirm your account before logging in.';
     }
