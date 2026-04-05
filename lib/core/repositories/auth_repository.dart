@@ -4,8 +4,6 @@ import '../supabase/supabase_config.dart';
 enum UserRole { admin, user }
 
 class AuthRepository {
-  /// Returns the role of the currently signed-in user by reading
-  /// the profiles table. Falls back to [UserRole.user] if no row exists.
   Future<UserRole> getCurrentUserRole() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return UserRole.user;
@@ -23,7 +21,10 @@ class AuthRepository {
   }
 
   Future<void> signIn(String email, String password) async {
-    await supabase.auth.signInWithPassword(email: email, password: password);
+    await supabase.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
   }
 
   Future<void> signUp({
@@ -31,26 +32,31 @@ class AuthRepository {
     required String password,
     required String fullName,
   }) async {
-    final response = await supabase.auth.signUp(
+    await supabase.auth.signUp(
       email: email,
       password: password,
       data: {'full_name': fullName},
     );
+    // Profile upsert is deferred to ensureProfile() which is called
+    // only once we've confirmed a session exists.
+  }
 
-    final user = response.user;
-    if (user != null) {
-      try {
-        await supabase.from('profiles').upsert({
-          'id': user.id,
-          'email': email,
-          'full_name': fullName,
-          'role': 'user',
-        });
-      } catch (_) {
-        // Some projects enforce strict RLS during sign-up (especially when
-        // email confirmation is enabled and session is not yet active).
-        // Profile bootstrap can be retried later after a verified sign-in.
-      }
+  /// Upserts the profile row. Safe to call multiple times.
+  Future<void> ensureProfile({
+    required String email,
+    required String fullName,
+  }) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+    try {
+      await supabase.from('profiles').upsert({
+        'id': user.id,
+        'email': email,
+        'full_name': fullName,
+        'role': 'user',
+      });
+    } catch (_) {
+      // RLS may block this during email-confirmation flows; ignore.
     }
   }
 

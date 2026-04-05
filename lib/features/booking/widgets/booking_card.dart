@@ -105,6 +105,8 @@ class BookingCard extends StatelessWidget {
         return Colors.green;
       case 'pending':
         return Colors.orange;
+      case 'completed':
+        return Colors.purple;
       default:
         return Colors.red;
     }

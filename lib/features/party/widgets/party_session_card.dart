@@ -1,6 +1,7 @@
 // lib/features/party/widgets/party_session_card.dart
 import 'package:flutter/material.dart';
 
+import '../../../core/supabase/supabase_config.dart';
 import '../viewmodels/party_view_model.dart';
 
 class PartySessionCard extends StatelessWidget {
@@ -8,10 +9,12 @@ class PartySessionCard extends StatelessWidget {
     super.key,
     required this.session,
     required this.onJoin,
+    this.onTap,
   });
 
   final PartySession session;
   final VoidCallback onJoin;
+  final VoidCallback? onTap;
 
   String _fmt(int h) {
     final suffix = h < 12 ? 'AM' : 'PM';
@@ -28,80 +31,150 @@ class PartySessionCard extends StatelessWidget {
         '${d.month.toString().padLeft(2, '0')}/${d.year}';
   }
 
+  bool get _isHost =>
+      supabase.auth.currentUser?.id == session.hostId;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                _SportBadge(sport: session.sport),
-                const Spacer(),
-                _PlayersBadge(session: session),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              session.facilityName,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1C3A2A),
-              ),
-            ),
-            const SizedBox(height: 6),
-            _InfoRow(
-                icon: Icons.calendar_today_outlined, text: _dateLabel),
-            const SizedBox(height: 3),
-            _InfoRow(icon: Icons.access_time_outlined, text: _timeLabel),
-            const SizedBox(height: 3),
-            _InfoRow(
-                icon: Icons.person_outline, text: 'Host: ${session.hostName}'),
-            if (session.notes != null && session.notes!.isNotEmpty) ...[
-              const SizedBox(height: 3),
-              _InfoRow(
-                  icon: Icons.notes_outlined, text: session.notes!),
-            ],
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: session.isFull
-                      ? Colors.grey.shade300
-                      : const Color(0xFF6DCC98),
-                  foregroundColor: session.isFull
-                      ? Colors.grey.shade600
-                      : Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                ),
-                onPressed: session.isFull ? null : onJoin,
-                child: Text(
-                  session.isFull ? 'Session Full' : 'Join Session',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-              ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _SportBadge(sport: session.sport),
+                  const SizedBox(width: 8),
+                  // Show "You're hosting" badge if current user is host
+                  if (_isHost)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C894E).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.star,
+                              size: 12, color: Color(0xFF1C894E)),
+                          SizedBox(width: 3),
+                          Text(
+                            'Hosting',
+                            style: TextStyle(
+                              color: Color(0xFF1C894E),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const Spacer(),
+                  _PlayersBadge(session: session),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                session.facilityName,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1C3A2A),
+                ),
+              ),
+              const SizedBox(height: 6),
+              _InfoRow(
+                  icon: Icons.calendar_today_outlined,
+                  text: _dateLabel),
+              const SizedBox(height: 3),
+              _InfoRow(
+                  icon: Icons.access_time_outlined, text: _timeLabel),
+              const SizedBox(height: 3),
+              _InfoRow(
+                  icon: Icons.person_outline,
+                  text: 'Host: ${session.hostName}'),
+              if (session.notes != null &&
+                  session.notes!.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                _InfoRow(
+                    icon: Icons.notes_outlined, text: session.notes!),
+              ],
+              const SizedBox(height: 12),
+
+              // ── Action row ─────────────────────────────────────────────
+              Row(
+                children: [
+                  // Chat / View Details button — always visible
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.chat_bubble_outline,
+                          size: 16),
+                      label: const Text('View & Chat'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF1C894E),
+                        side: const BorderSide(
+                            color: Color(0xFF1C894E)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding:
+                        const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      onPressed: onTap,
+                    ),
+                  ),
+
+                  // Join button — hidden for host
+                  if (!_isHost) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: session.isFull
+                              ? Colors.grey.shade300
+                              : const Color(0xFF6DCC98),
+                          foregroundColor: session.isFull
+                              ? Colors.grey.shade600
+                              : Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 10),
+                        ),
+                        onPressed: session.isFull ? null : onJoin,
+                        child: Text(
+                          session.isFull
+                              ? 'Full'
+                              : 'Join',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -115,7 +188,8 @@ class _SportBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding:
+      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFFD6F0E0),
         borderRadius: BorderRadius.circular(20),
@@ -169,7 +243,8 @@ class _InfoRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            style: const TextStyle(
+                fontSize: 12, color: Colors.black87),
           ),
         ),
       ],

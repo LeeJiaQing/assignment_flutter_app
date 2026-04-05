@@ -41,11 +41,19 @@ class BookingDetailScreen extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // ── QR Code Section ──────────────────────────────────────────
-              _QrSection(bookingId: booking.id),
-              const SizedBox(height: 16),
+              // ── QR Code Section ───────────────────────────────────────
+              if (booking.status == 'confirmed')
+                _QrSection(bookingId: booking.id),
+              if (booking.status == 'confirmed')
+                const SizedBox(height: 16),
 
-              // ── Facility Image ────────────────────────────────────────────
+              // ── Status Banner for non-active bookings ─────────────────
+              if (booking.status != 'confirmed')
+                _StatusBanner(status: booking.status),
+              if (booking.status != 'confirmed')
+                const SizedBox(height: 16),
+
+              // ── Facility Image ────────────────────────────────────────
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: FacilityThumb(
@@ -55,7 +63,7 @@ class BookingDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // ── Booking Details Card ──────────────────────────────────────
+              // ── Booking Details Card ──────────────────────────────────
               _SectionCard(
                 title: 'Booking Details',
                 icon: Icons.receipt_long_outlined,
@@ -82,7 +90,7 @@ class BookingDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
-              // ── Payment Details Card ──────────────────────────────────────
+              // ── Payment Details Card ──────────────────────────────────
               _SectionCard(
                 title: 'Payment Details',
                 icon: Icons.payment_outlined,
@@ -107,11 +115,36 @@ class BookingDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // ── Cancel Button (only for confirmed/pending) ────────────────
-              if (booking.status == 'confirmed' ||
-                  booking.status == 'pending')
+              // ── Cancel Button — only if allowed ───────────────────────
+              if (BookingViewModel.canCancel(bookingWithFacility))
                 _CancelButton(
                   onCancel: () => _handleCancel(context, booking.id),
+                ),
+
+              // ── Cannot cancel info ─────────────────────────────────────
+              if (booking.status == 'confirmed' &&
+                  !BookingViewModel.canCancel(bookingWithFacility))
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline,
+                          color: Colors.orange, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'This booking cannot be cancelled as the session time has already passed.',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.black87),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
 
               const SizedBox(height: 32),
@@ -155,11 +188,74 @@ class BookingDetailScreen extends StatelessWidget {
   }
 }
 
-// ── QR Code Placeholder ────────────────────────────────────────────────────
+// ── Status Banner ──────────────────────────────────────────────────────────
+
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner({required this.status});
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    Color bg;
+    Color fg;
+    IconData icon;
+    String message;
+
+    switch (status) {
+      case 'completed':
+        bg = const Color(0xFFD6F0E0);
+        fg = const Color(0xFF1C894E);
+        icon = Icons.check_circle_outline;
+        message = 'This session has been completed.';
+        break;
+      case 'cancelled':
+        bg = Colors.red.shade50;
+        fg = Colors.red.shade700;
+        icon = Icons.cancel_outlined;
+        message = 'This booking was cancelled.';
+        break;
+      case 'pending_sync':
+        bg = Colors.orange.shade50;
+        fg = Colors.orange.shade800;
+        icon = Icons.cloud_upload_outlined;
+        message = 'Booking saved offline — will sync when online.';
+        break;
+      default:
+        bg = Colors.grey.shade100;
+        fg = Colors.grey.shade700;
+        icon = Icons.info_outline;
+        message = 'Booking status: $status';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: fg, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                  color: fg,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── QR Section ─────────────────────────────────────────────────────────────
 
 class _QrSection extends StatelessWidget {
   const _QrSection({required this.bookingId});
-
   final String bookingId;
 
   @override
@@ -188,7 +284,6 @@ class _QrSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          // QR Placeholder — replace with a real QR package later
           Container(
             width: 160,
             height: 160,
@@ -202,9 +297,7 @@ class _QrSection extends StatelessWidget {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Corner decorators to mimic a QR border
                 ..._qrCorners(),
-                // Center icon
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -229,10 +322,8 @@ class _QrSection extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'Show this QR code at the facility entrance',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade500,
-            ),
+            style:
+            TextStyle(fontSize: 12, color: Colors.grey.shade500),
             textAlign: TextAlign.center,
           ),
         ],
@@ -257,10 +348,8 @@ class _QrSection extends StatelessWidget {
             child: Container(
               width: size,
               height: size,
-              decoration: BoxDecoration(
-                border: border,
-                borderRadius: radius,
-              ),
+              decoration:
+              BoxDecoration(border: border, borderRadius: radius),
             ),
           ),
         );
@@ -268,7 +357,8 @@ class _QrSection extends StatelessWidget {
     return [
       corner(
         alignment: Alignment.topLeft,
-        radius: const BorderRadius.only(topLeft: Radius.circular(4)),
+        radius:
+        const BorderRadius.only(topLeft: Radius.circular(4)),
         border: const Border(
           top: BorderSide(color: color, width: thickness),
           left: BorderSide(color: color, width: thickness),
@@ -276,7 +366,8 @@ class _QrSection extends StatelessWidget {
       ),
       corner(
         alignment: Alignment.topRight,
-        radius: const BorderRadius.only(topRight: Radius.circular(4)),
+        radius:
+        const BorderRadius.only(topRight: Radius.circular(4)),
         border: const Border(
           top: BorderSide(color: color, width: thickness),
           right: BorderSide(color: color, width: thickness),
@@ -284,7 +375,8 @@ class _QrSection extends StatelessWidget {
       ),
       corner(
         alignment: Alignment.bottomLeft,
-        radius: const BorderRadius.only(bottomLeft: Radius.circular(4)),
+        radius: const BorderRadius.only(
+            bottomLeft: Radius.circular(4)),
         border: const Border(
           bottom: BorderSide(color: color, width: thickness),
           left: BorderSide(color: color, width: thickness),
@@ -292,7 +384,8 @@ class _QrSection extends StatelessWidget {
       ),
       corner(
         alignment: Alignment.bottomRight,
-        radius: const BorderRadius.only(bottomRight: Radius.circular(4)),
+        radius: const BorderRadius.only(
+            bottomRight: Radius.circular(4)),
         border: const Border(
           bottom: BorderSide(color: color, width: thickness),
           right: BorderSide(color: color, width: thickness),
@@ -305,11 +398,10 @@ class _QrSection extends StatelessWidget {
 // ── Section Card ───────────────────────────────────────────────────────────
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
+  const _SectionCard(
+      {required this.title,
+        required this.icon,
+        required this.children});
 
   final String title;
   final IconData icon;
@@ -337,14 +429,11 @@ class _SectionCard extends StatelessWidget {
             children: [
               Icon(icon, size: 18, color: const Color(0xFF1C894E)),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1C3A2A),
-                ),
-              ),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1C3A2A))),
             ],
           ),
           const SizedBox(height: 14),
@@ -360,12 +449,8 @@ class _SectionCard extends StatelessWidget {
 // ── Detail Row ─────────────────────────────────────────────────────────────
 
 class _DetailRow extends StatelessWidget {
-  const _DetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
+  const _DetailRow(
+      {required this.icon, required this.label, required this.value});
   final IconData icon;
   final String label;
   final String value;
@@ -381,20 +466,16 @@ class _DetailRow extends StatelessWidget {
           const SizedBox(width: 10),
           SizedBox(
             width: 110,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
-            ),
+            child: Text(label,
+                style:
+                const TextStyle(fontSize: 13, color: Colors.grey)),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.black87,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            child: Text(value,
+                style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -406,7 +487,6 @@ class _DetailRow extends StatelessWidget {
 
 class _StatusRow extends StatelessWidget {
   const _StatusRow({required this.status});
-
   final String status;
 
   Color get _color {
@@ -415,6 +495,8 @@ class _StatusRow extends StatelessWidget {
         return Colors.green;
       case 'pending':
         return Colors.orange;
+      case 'completed':
+        return Colors.purple;
       default:
         return Colors.red;
     }
@@ -429,30 +511,26 @@ class _StatusRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Icon(Icons.info_outline, size: 16, color: const Color(0xFF1C894E)),
+          const Icon(Icons.info_outline,
+              size: 16, color: Color(0xFF1C894E)),
           const SizedBox(width: 10),
           const SizedBox(
-            width: 110,
-            child: Text(
-              'Status',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-          ),
+              width: 110,
+              child: Text('Status',
+                  style:
+                  TextStyle(fontSize: 13, color: Colors.grey))),
           Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 10, vertical: 3),
             decoration: BoxDecoration(
               color: _color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(
-              _label,
-              style: TextStyle(
-                color: _color,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
+            child: Text(_label,
+                style: TextStyle(
+                    color: _color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12)),
           ),
         ],
       ),
@@ -464,7 +542,6 @@ class _StatusRow extends StatelessWidget {
 
 class _CancelButton extends StatelessWidget {
   const _CancelButton({required this.onCancel});
-
   final VoidCallback onCancel;
 
   @override

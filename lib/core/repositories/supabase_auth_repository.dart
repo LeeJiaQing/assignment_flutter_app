@@ -38,4 +38,10 @@ class SupabaseAuthRepository implements AuthRepository {
     // TODO: implement signUp
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> ensureProfile({required String email, required String fullName}) {
+    // TODO: implement ensureProfile
+    throw UnimplementedError();
+  }
 }

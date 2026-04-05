@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/local/local_database.dart';
+import 'features/profile/viewmodels/profile_view_model.dart';
 import 'core/repositories/auth_repository.dart';
 import 'core/repositories/offline_booking_repository.dart';
 import 'core/services/connectivity_service.dart';
@@ -75,7 +76,10 @@ class MainApp extends StatelessWidget {
         '/feedback': (_) => const CreateFeedbackScreen(),
         '/terms': (_) => const TermsConditionsScreen(),
         '/notifications': (_) => const NotificationScreen(),
-        '/profile/edit': (_) => const EditProfileScreen(),
+        '/profile/edit': (_) => ChangeNotifierProvider(
+          create: (_) => ProfileViewModel(authRepository: AuthRepository())..loadProfile(),
+          child: const EditProfileScreen(),
+        ),
         '/party/create': (_) => const CreatePartyScreen(),
         '/admin/facility/create': (_) => const CreateFacilityScreen(),
       },

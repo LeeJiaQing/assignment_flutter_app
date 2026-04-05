@@ -4,6 +4,8 @@ import '../supabase/supabase_config.dart';
 
 class BookingRepository {
   /// Returns all booked start_hours for a given court on a given date.
+  /// This intentionally fetches ALL users' bookings (not just the current
+  /// user's) so the slot grid correctly shows unavailable slots.
   Future<Set<int>> fetchBookedHours({
     required String courtId,
     required DateTime date,
@@ -45,7 +47,6 @@ class BookingRepository {
     required int startHour,
     required int endHour,
   }) async {
-    // FIX: Use ?. instead of ! to avoid null check crash
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('User not signed in');
 
@@ -72,7 +73,6 @@ class BookingRepository {
     required double amount,
     required String method,
   }) async {
-    // FIX: Use ?. instead of ! to avoid null check crash
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('User not signed in');
 

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'viewmodels/party_view_model.dart';
 import 'widgets/party_session_card.dart';
+import 'party_detail_chat_screen.dart';
 
 class PartyScreen extends StatelessWidget {
   const PartyScreen({super.key});
@@ -121,16 +122,29 @@ class _SessionList extends StatelessWidget {
           padding:
           const EdgeInsets.fromLTRB(16, 8, 16, 80),
           itemCount: vm.sessions.length,
-          itemBuilder: (_, i) => PartySessionCard(
-            session: vm.sessions[i],
-            onJoin: () => _handleJoin(context, vm.sessions[i].id),
-          ),
+          itemBuilder: (_, i) {
+            final session = vm.sessions[i];
+            return PartySessionCard(
+              session: session,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PartyDetailChatScreen(
+                    session: session,
+                  ),
+                ),
+              ),
+              onJoin: () =>
+                  _handleJoin(context, session.id),
+            );
+          },
         ),
       ),
     };
   }
 
-  Future<void> _handleJoin(BuildContext context, String sessionId) async {
+  Future<void> _handleJoin(
+      BuildContext context, String sessionId) async {
     final success =
     await context.read<PartyViewModel>().joinSession(sessionId);
     if (!context.mounted) return;

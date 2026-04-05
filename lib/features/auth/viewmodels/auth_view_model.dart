@@ -41,17 +41,25 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       await _repo.signUp(
-          email: email, password: password, fullName: fullName);
+        email: email,
+        password: password,
+        fullName: fullName,
+      );
 
-      // Supabase signs the user in automatically after signUp
-      // when email confirmation is disabled. Try signing in:
-      try {
-        await _repo.signIn(email, password);
+      // After signUp, Supabase may have already created a session.
+      // Check if we're signed in — if yes, go straight to success.
+      // If not (email confirmation required), show a friendly message.
+      final isSignedIn = _repo.isSignedIn;
+
+      if (isSignedIn) {
+        // Ensure the profile row exists with the correct name
+        await _repo.ensureProfile(email: email, fullName: fullName);
         _status = AuthStatus.success;
-      } catch (_) {
-        // Email confirmation may be required — still treat as success
-        // so user sees a friendly message
-        _status = AuthStatus.success;
+      } else {
+        // Email confirmation is enabled — user must confirm before logging in
+        _errorMessage =
+        'Account created! Please check your email to confirm your account, then log in.';
+        _status = AuthStatus.error; // Use error state to show the message
       }
     } catch (e) {
       _errorMessage = _parseError(e.toString());
@@ -85,9 +93,9 @@ class AuthViewModel extends ChangeNotifier {
       return 'Invalid email format.';
     }
     if (raw.contains('email rate limit exceeded')) {
-      return 'Too many verification emails were sent. Please wait a few minutes before signing up again.';
+      return 'Too many attempts. Please wait a few minutes and try again.';
     }
-    return 'Error: $raw';
+    return 'Something went wrong. Please try again.';
   }
 
   void reset() {
