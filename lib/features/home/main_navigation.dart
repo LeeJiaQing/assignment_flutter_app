@@ -55,6 +55,7 @@ class _MainNavigationView extends StatelessWidget {
     final pages = vm.isAdmin
         ? const [
       AdminDashboardScreen(),
+      FacilityScreen(),
       PartyScreen(),
       RealtimeChatScreen(),
       QrScannerScreen(),
