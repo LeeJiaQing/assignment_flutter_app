@@ -1,6 +1,7 @@
 // lib/features/notification/viewmodels/notification_view_model.dart
 import 'package:flutter/material.dart';
 
+import '../../../core/services/notification_service.dart';
 import '../../../core/supabase/supabase_config.dart';
 import '../../../models/notification_model.dart';
 
@@ -24,21 +25,32 @@ class NotificationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await supabase
-          .from('announcements')
-          .select()
-          .order('created_at', ascending: false);
-
-      _notifications = (response as List<dynamic>)
-          .map((json) =>
-          NotificationItem.fromJson(json as Map<String, dynamic>))
-          .toList();
+      // Read from user_notifications (per-user inbox)
+      final rows =
+      await NotificationService.instance.fetchMyNotifications();
+      _notifications =
+          rows.map((j) => NotificationItem.fromJson(j)).toList();
       _status = NotificationStatus.loaded;
     } catch (e) {
       _errorMessage = e.toString();
       _status = NotificationStatus.error;
     }
 
+    notifyListeners();
+  }
+
+  Future<void> markRead(String id) async {
+    await NotificationService.instance.markRead(id);
+    _notifications = _notifications
+        .map((n) => n.id == id ? n.copyWith(isRead: true) : n)
+        .toList();
+    notifyListeners();
+  }
+
+  Future<void> markAllRead() async {
+    await NotificationService.instance.markAllRead();
+    _notifications =
+        _notifications.map((n) => n.copyWith(isRead: true)).toList();
     notifyListeners();
   }
 }

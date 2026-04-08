@@ -3,14 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/local/local_database.dart';
-import 'features/profile/viewmodels/profile_view_model.dart';
 import 'core/repositories/auth_repository.dart';
 import 'core/repositories/offline_booking_repository.dart';
 import 'core/services/connectivity_service.dart';
 import 'core/services/sync_service.dart';
 import 'core/supabase/supabase_config.dart';
+import 'features/admin/admin_announcement_screen.dart';
 import 'features/admin/create_facility_screen.dart';
 import 'features/admin/edit_facility_screen.dart';
+import 'features/admin/user_list_screen.dart';
 import 'features/auth/auth_gate.dart';
 import 'features/auth/login_screen.dart';
 import 'features/booking/booking_screen.dart';
@@ -20,22 +21,19 @@ import 'features/home/main_navigation.dart';
 import 'features/notification/notification_screen.dart';
 import 'features/profile/edit_profile_screen.dart';
 import 'features/profile/terms_conditions_screen.dart';
+import 'features/profile/viewmodels/profile_view_model.dart';
 import 'features/rewardPoints/rewardpoints_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Supabase
   await SupabaseConfig.init();
 
-  // 2. SQLite — initialise FFI on Windows/Linux, then warm up the connection
   LocalDatabase.initFfiIfNeeded();
   await LocalDatabase.instance.database;
 
-  // 3. Connectivity monitoring
   ConnectivityService.instance.startMonitoring();
 
-  // 4. Background sync service (syncs pending bookings on reconnect)
   SyncService.instance.init(
     bookingRepository: OfflineBookingRepository(),
   );
@@ -66,7 +64,6 @@ class MainApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      // Auth gate is the entry point — checks if user is signed in
       home: const AuthGate(),
       routes: {
         '/login': (_) => const LoginScreen(),
@@ -77,11 +74,17 @@ class MainApp extends StatelessWidget {
         '/terms': (_) => const TermsConditionsScreen(),
         '/notifications': (_) => const NotificationScreen(),
         '/profile/edit': (_) => ChangeNotifierProvider(
-          create: (_) => ProfileViewModel(authRepository: AuthRepository())..loadProfile(),
+          create: (_) =>
+          ProfileViewModel(authRepository: AuthRepository())
+            ..loadProfile(),
           child: const EditProfileScreen(),
         ),
         '/party/create': (_) => const CreatePartyScreen(),
-        '/admin/facility/create': (_) => const CreateFacilityScreen(),
+        '/admin/facility/create': (_) =>
+        const CreateFacilityScreen(),
+        '/admin/announcement': (_) =>
+        const AdminAnnouncementScreen(),
+        '/admin/users': (_) => const UserListScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {

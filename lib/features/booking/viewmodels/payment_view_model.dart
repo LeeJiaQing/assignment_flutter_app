@@ -2,12 +2,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/services/booking_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../rewardPoints/viewmodels/reward_points_view_model.dart';
 
 enum PayMethod { tng, card, banking }
 
 extension PayMethodExt on PayMethod {
-  String get dbValue => name; // 'tng' | 'card' | 'banking'
+  String get dbValue => name;
 
   String get label {
     switch (this) {
@@ -70,7 +71,6 @@ class PaymentViewModel extends ChangeNotifier {
   PaymentStatus _status = PaymentStatus.idle;
   String? _errorMessage;
 
-  // Rewards
   int _availablePoints = 0;
   bool _useRewardPoints = false;
   int _pointsToRedeem = 0;
@@ -84,15 +84,18 @@ class PaymentViewModel extends ChangeNotifier {
   bool get useRewardPoints => _useRewardPoints;
   int get pointsToRedeem => _pointsToRedeem;
 
-  /// Discount: 100 points = RM 1
-  double get rewardDiscount => _useRewardPoints ? (_pointsToRedeem / 100.0) : 0.0;
-  double get grandTotal => (_originalTotal - rewardDiscount).clamp(0, double.infinity);
+  double get rewardDiscount =>
+      _useRewardPoints ? (_pointsToRedeem / 100.0) : 0.0;
+  double get grandTotal =>
+      (_originalTotal - rewardDiscount).clamp(0, double.infinity);
 
   Future<void> _loadAvailablePoints() async {
-    _availablePoints = await RewardPointsViewModel.getAvailablePoints();
-    // Max redeemable: either all points or max 50% of order
-    final maxByOrder = (_originalTotal * 0.5 * 100).floor(); // 50% of order in points
-    _pointsToRedeem = _availablePoints < maxByOrder ? _availablePoints : maxByOrder;
+    _availablePoints =
+    await RewardPointsViewModel.getAvailablePoints();
+    final maxByOrder = (_originalTotal * 0.5 * 100).floor();
+    _pointsToRedeem = _availablePoints < maxByOrder
+        ? _availablePoints
+        : maxByOrder;
     notifyListeners();
   }
 
@@ -112,7 +115,6 @@ class PaymentViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Redeem points first if opted in
       if (_useRewardPoints && _pointsToRedeem > 0) {
         await RewardPointsViewModel.redeemPoints(
           points: _pointsToRedeem,
@@ -129,7 +131,8 @@ class PaymentViewModel extends ChangeNotifier {
           endHour: item.endHour,
         );
 
-        final double slotAmount = (item.pricePerSlot - (rewardDiscount / items.length))
+        final double slotAmount =
+        (item.pricePerSlot - (rewardDiscount / items.length))
             .clamp(0, double.infinity);
 
         await _service.createPayment(
@@ -137,13 +140,25 @@ class PaymentViewModel extends ChangeNotifier {
           amount: slotAmount,
           method: _selectedMethod.dbValue,
         );
+
+        // ── Schedule booking reminder notification ──────────────────
+        final slotStart = DateTime(
+          item.date.year,
+          item.date.month,
+          item.date.day,
+          item.startHour,
+        );
+        await NotificationService.instance.scheduleBookingReminder(
+          bookingId: booking.id,
+          facilityName: item.facilityName,
+          slotStart: slotStart,
+        );
       }
 
-      // Earn reward points: 1 point per RM 1 paid
       await RewardPointsViewModel.earnPoints(
         amount: grandTotal,
         description:
-            'Earned from booking at ${items.isNotEmpty ? items.first.facilityName : "facility"}',
+        'Earned from booking at ${items.isNotEmpty ? items.first.facilityName : "facility"}',
       );
 
       _status = PaymentStatus.success;

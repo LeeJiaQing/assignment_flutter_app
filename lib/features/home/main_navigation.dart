@@ -8,9 +8,10 @@ import '../admin/qr_scanner_screen.dart';
 import '../chat/realtime_chat_screen.dart';
 import '../facility/facility_screen.dart';
 import '../home/home_screen.dart';
+import '../notification/notification_screen.dart';
+import '../notification/viewmodels/notification_view_model.dart';
 import '../party/party_screen.dart';
 import '../profile/profile_screen.dart';
-import '../notification/notification_screen.dart';
 import 'viewmodels/navigation_view_model.dart';
 
 class MainNavigation extends StatelessWidget {
@@ -18,9 +19,18 @@ class MainNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => NavigationViewModel(authRepository: AuthRepository())
-        ..initialize(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) =>
+          NavigationViewModel(authRepository: AuthRepository())
+            ..initialize(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) =>
+          NotificationViewModel()..loadNotifications(),
+        ),
+      ],
       child: const _MainNavigationView(),
     );
   }
@@ -32,6 +42,7 @@ class _MainNavigationView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<NavigationViewModel>();
+    final notifVm = context.watch<NotificationViewModel>();
 
     if (vm.isLoading) {
       return const Scaffold(
@@ -43,33 +54,71 @@ class _MainNavigationView extends StatelessWidget {
 
     final pages = vm.isAdmin
         ? const [
-            AdminDashboardScreen(),
-            FacilityScreen(),
-            PartyScreen(),
-            RealtimeChatScreen(),
-            QrScannerScreen(),
-            ProfileScreen(),
-          ]
+      AdminDashboardScreen(),
+      PartyScreen(),
+      RealtimeChatScreen(),
+      QrScannerScreen(),
+      ProfileScreen(),
+    ]
         : const [
-            HomePage(),
-            FacilityScreen(),
-            PartyScreen(),
-            RealtimeChatScreen(),
-            ProfileScreen(),
-          ];
+      HomePage(),
+      FacilityScreen(),
+      PartyScreen(),
+      RealtimeChatScreen(),
+      ProfileScreen(),
+    ];
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('CourtNow'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.campaign_outlined),
-            tooltip: 'Announcements',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const NotificationScreen()),
-            ),
+          // ── Notification bell with unread badge ──────────────────────
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                tooltip: 'Notifications',
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationScreen(),
+                    ),
+                  );
+                  // Reload badge count after returning
+                  if (context.mounted) {
+                    context
+                        .read<NotificationViewModel>()
+                        .loadNotifications();
+                  }
+                },
+              ),
+              if (notifVm.unreadCount > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      notifVm.unreadCount > 99
+                          ? '99+'
+                          : '${notifVm.unreadCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),

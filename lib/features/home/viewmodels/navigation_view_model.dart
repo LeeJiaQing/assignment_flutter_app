@@ -21,14 +21,12 @@ class NavigationViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  int get pageCount => isAdmin ? 6 : 5;
+  int get pageCount => isAdmin ? 5 : 5;
 
   List<BottomNavigationBarItem> get items => isAdmin
       ? const [
           BottomNavigationBarItem(
               icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.stadium_outlined), label: 'Facility'),
           BottomNavigationBarItem(
               icon: Icon(Icons.sports_soccer), label: 'Party'),
           BottomNavigationBarItem(
