@@ -1,8 +1,9 @@
 // lib/features/booking/viewmodels/payment_view_model.dart
+// Booking reminders are now handled server-side via pg_cron +
+// create_upcoming_booking_reminders() — no client-side scheduling needed.
 import 'package:flutter/material.dart';
 
 import '../../../core/services/booking_service.dart';
-import '../../../core/services/notification_service.dart';
 import '../../rewardPoints/viewmodels/reward_points_view_model.dart';
 
 enum PayMethod { tng, card, banking }
@@ -140,19 +141,9 @@ class PaymentViewModel extends ChangeNotifier {
           amount: slotAmount,
           method: _selectedMethod.dbValue,
         );
-
-        // ── Schedule booking reminder notification ──────────────────
-        final slotStart = DateTime(
-          item.date.year,
-          item.date.month,
-          item.date.day,
-          item.startHour,
-        );
-        await NotificationService.instance.scheduleBookingReminder(
-          bookingId: booking.id,
-          facilityName: item.facilityName,
-          slotStart: slotStart,
-        );
+        // Note: 10-minute booking reminders are fired server-side
+        // by the pg_cron job calling create_upcoming_booking_reminders().
+        // No client-side scheduling is needed here.
       }
 
       await RewardPointsViewModel.earnPoints(
