@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'viewmodels/party_view_model.dart';
 import 'widgets/party_session_card.dart';
-import 'party_detail_chat_screen.dart';
+import 'party_chat_screen.dart';
 
 class PartyScreen extends StatelessWidget {
   const PartyScreen({super.key});
