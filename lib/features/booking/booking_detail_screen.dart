@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/repositories/booking_repository.dart';
 import '../../core/repositories/facility_repository.dart';
 import '../../core/services/booking_service.dart';
+import '../../core/supabase/supabase_config.dart';
 import '../../models/booking_model.dart';
 import 'viewmodels/booking_view_model.dart';
 import 'widgets/facility_thumb.dart';
@@ -95,22 +96,7 @@ class BookingDetailScreen extends StatelessWidget {
                 title: 'Payment Details',
                 icon: Icons.payment_outlined,
                 children: [
-                  _DetailRow(
-                    icon: Icons.account_balance_wallet_outlined,
-                    label: 'Payment Type',
-                    value: 'Digital Wallet',
-                  ),
-                  _DetailRow(
-                    icon: Icons.credit_card_outlined,
-                    label: 'Payment Method',
-                    value: 'TNG eWallet',
-                  ),
-                  _DetailRow(
-                    icon: Icons.calendar_month_outlined,
-                    label: 'Payment Date',
-                    value:
-                    '${booking.date.day.toString().padLeft(2, '0')}/${booking.date.month.toString().padLeft(2, '0')}/${booking.date.year}',
-                  ),
+                  _PaymentDetailsRows(bookingId: booking.id, booking: booking),
                 ],
               ),
               const SizedBox(height: 16),
@@ -186,6 +172,97 @@ class BookingDetailScreen extends StatelessWidget {
       const SnackBar(content: Text('Booking cancelled.')),
     );
   }
+}
+
+class _PaymentDetailsRows extends StatelessWidget {
+  const _PaymentDetailsRows({
+    required this.bookingId,
+    required this.booking,
+  });
+
+  final String bookingId;
+  final Booking booking;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _loadPaymentRow(),
+      builder: (context, snapshot) {
+        final methodCode = (snapshot.data?['method'] as String?) ?? '';
+        final labels = _paymentLabels(methodCode);
+
+        return Column(
+          children: [
+            _DetailRow(
+              icon: Icons.account_balance_wallet_outlined,
+              label: 'Payment Type',
+              value: labels.type,
+            ),
+            _DetailRow(
+              icon: Icons.credit_card_outlined,
+              label: 'Payment Method',
+              value: labels.method,
+            ),
+            _DetailRow(
+              icon: Icons.calendar_month_outlined,
+              label: 'Payment Date',
+              value:
+                  '${booking.date.day.toString().padLeft(2, '0')}/${booking.date.month.toString().padLeft(2, '0')}/${booking.date.year}',
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>?> _loadPaymentRow() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return null;
+      final rows = await supabase
+          .from('payments')
+          .select('method')
+          .eq('booking_id', bookingId)
+          .eq('user_id', userId)
+          .order('created_at', ascending: false)
+          .limit(1);
+      if ((rows as List<dynamic>).isEmpty) return null;
+      return rows.first as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  _PaymentLabels _paymentLabels(String methodCode) {
+    switch (methodCode) {
+      case 'tng':
+        return const _PaymentLabels(
+          type: 'Digital Wallet',
+          method: "Touch 'n Go eWallet",
+        );
+      case 'card':
+        return const _PaymentLabels(
+          type: 'Card Payment',
+          method: 'Credit/Debit Card',
+        );
+      case 'banking':
+        return const _PaymentLabels(
+          type: 'Online Banking',
+          method: 'FPX / Online Banking',
+        );
+      default:
+        return const _PaymentLabels(
+          type: 'N/A',
+          method: 'N/A',
+        );
+    }
+  }
+}
+
+class _PaymentLabels {
+  final String type;
+  final String method;
+  const _PaymentLabels({required this.type, required this.method});
 }
 
 // ── Status Banner ──────────────────────────────────────────────────────────
