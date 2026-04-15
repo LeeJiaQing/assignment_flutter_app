@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/services/booking_service.dart';
+import '../../../core/supabase/supabase_config.dart';
 import '../../rewardPoints/viewmodels/reward_points_view_model.dart';
 
 enum PayMethod { tng, card, banking }
@@ -62,6 +63,7 @@ class PaymentViewModel extends ChangeNotifier {
         items = items,
         _originalTotal = grandTotal {
     _loadAvailablePoints();
+    _loadPaymentSetup();
   }
 
   final BookingService _service;
@@ -75,6 +77,9 @@ class PaymentViewModel extends ChangeNotifier {
   int _availablePoints = 0;
   bool _useRewardPoints = false;
   int _pointsToRedeem = 0;
+  String? _tngPhone;
+  String? _cardNumber;
+  String? _selectedBank;
 
   PayMethod get selectedMethod => _selectedMethod;
   PaymentStatus get status => _status;
@@ -84,6 +89,9 @@ class PaymentViewModel extends ChangeNotifier {
   int get availablePoints => _availablePoints;
   bool get useRewardPoints => _useRewardPoints;
   int get pointsToRedeem => _pointsToRedeem;
+  String? get tngPhone => _tngPhone;
+  String? get cardNumber => _cardNumber;
+  String? get selectedBank => _selectedBank;
 
   double get rewardDiscount =>
       _useRewardPoints ? (_pointsToRedeem / 100.0) : 0.0;
@@ -91,8 +99,7 @@ class PaymentViewModel extends ChangeNotifier {
       (_originalTotal - rewardDiscount).clamp(0, double.infinity);
 
   Future<void> _loadAvailablePoints() async {
-    _availablePoints =
-    await RewardPointsViewModel.getAvailablePoints();
+    _availablePoints = await RewardPointsViewModel.getAvailablePoints();
     final maxByOrder = (_originalTotal * 0.5 * 100).floor();
     _pointsToRedeem = _availablePoints < maxByOrder
         ? _availablePoints
@@ -110,7 +117,110 @@ class PaymentViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void saveTngPhone(String phone) {
+    _tngPhone = phone.trim();
+    notifyListeners();
+    _persistPaymentSetup();
+  }
+
+  void saveCardNumber(String cardNo) {
+    final digitsOnly = cardNo.replaceAll(RegExp(r'\s+'), '');
+    _cardNumber = digitsOnly;
+    notifyListeners();
+    _persistPaymentSetup();
+  }
+
+  void saveBank(String bank) {
+    _selectedBank = bank;
+    notifyListeners();
+    _persistPaymentSetup();
+  }
+
+  bool get isSelectedMethodConfigured {
+    switch (_selectedMethod) {
+      case PayMethod.tng:
+        return (_tngPhone ?? '').isNotEmpty;
+      case PayMethod.card:
+        return (_cardNumber ?? '').length >= 12;
+      case PayMethod.banking:
+        return (_selectedBank ?? '').isNotEmpty;
+    }
+  }
+
+  String get selectedMethodSetupLabel {
+    return methodDetailLabel(_selectedMethod);
+  }
+
+  String methodDetailLabel(PayMethod method) {
+    String maskPhone(String raw) {
+      if (raw.length < 4) return raw;
+      final end = raw.substring(raw.length - 4);
+      return '${'*' * (raw.length - 4)}$end';
+    }
+
+    switch (method) {
+      case PayMethod.tng:
+        if ((_tngPhone ?? '').isEmpty) return 'Not set up yet';
+        return maskPhone(_tngPhone!);
+      case PayMethod.card:
+        final card = _cardNumber ?? '';
+        if (card.isEmpty) return 'Not set up yet';
+        final suffix =
+            card.length >= 4 ? card.substring(card.length - 4) : card;
+        return '•••• •••• •••• $suffix';
+      case PayMethod.banking:
+        if ((_selectedBank ?? '').isEmpty) return 'Not set up yet';
+        return 'Bank: $_selectedBank';
+    }
+  }
+
+  Future<void> _loadPaymentSetup() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final rows = await supabase
+          .from('user_payment_methods')
+          .select('tng_phone, card_number, bank_name')
+          .eq('user_id', userId)
+          .limit(1);
+
+      if ((rows as List<dynamic>).isEmpty) return;
+      final data = rows.first as Map<String, dynamic>;
+      _tngPhone = data['tng_phone'] as String?;
+      _cardNumber = data['card_number'] as String?;
+      _selectedBank = data['bank_name'] as String?;
+      notifyListeners();
+    } catch (_) {
+      // Table may not exist yet in Supabase; keep local-only fallback.
+    }
+  }
+
+  Future<void> _persistPaymentSetup() async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      await supabase.from('user_payment_methods').upsert({
+        'user_id': userId,
+        'tng_phone': _tngPhone,
+        'card_number': _cardNumber,
+        'bank_name': _selectedBank,
+      });
+    } catch (_) {
+      // Keep flow working even when persistence layer isn't ready yet.
+    }
+  }
+
   Future<void> processPayment() async {
+    if (!isSelectedMethodConfigured) {
+      _errorMessage =
+          'Please set up ${_selectedMethod.label} details before paying.';
+      _status = PaymentStatus.error;
+      notifyListeners();
+      return;
+    }
+
     _status = PaymentStatus.processing;
     _errorMessage = null;
     notifyListeners();
@@ -133,8 +243,8 @@ class PaymentViewModel extends ChangeNotifier {
         );
 
         final double slotAmount =
-        (item.pricePerSlot - (rewardDiscount / items.length))
-            .clamp(0, double.infinity);
+            (item.pricePerSlot - (rewardDiscount / items.length))
+                .clamp(0, double.infinity);
 
         await _service.createPayment(
           bookingId: booking.id,
@@ -148,8 +258,8 @@ class PaymentViewModel extends ChangeNotifier {
 
       await RewardPointsViewModel.earnPoints(
         amount: grandTotal,
-        description:
-        'Earned from booking at ${items.isNotEmpty ? items.first.facilityName : "facility"}',
+        description: 'Earned from booking at '
+            '${items.isNotEmpty ? items.first.facilityName : "facility"}',
       );
 
       _status = PaymentStatus.success;
