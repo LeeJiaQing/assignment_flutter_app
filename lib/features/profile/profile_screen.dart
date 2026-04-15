@@ -2,8 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/repositories/auth_repository.dart';
-import '../../core/supabase/supabase_config.dart';
+import '../../core/di/app_dependencies.dart';
 import 'viewmodels/profile_view_model.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_menu_item.dart';
@@ -15,7 +14,9 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) =>
-          ProfileViewModel(authRepository: AuthRepository())..loadProfile(),
+          ProfileViewModel(
+            authRepository: context.read<AppDependencies>().authRepository,
+          )..loadProfile(),
       child: const _ProfileView(),
     );
   }

@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/repositories/auth_repository.dart';
+import '../../core/di/app_dependencies.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../admin/qr_scanner_screen.dart';
 import '../chat/realtime_chat_screen.dart';
@@ -23,8 +23,9 @@ class MainNavigation extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(
           create: (_) =>
-          NavigationViewModel(authRepository: AuthRepository())
-            ..initialize(),
+          NavigationViewModel(
+            authRepository: context.read<AppDependencies>().authRepository,
+          )..initialize(),
         ),
         ChangeNotifierProvider(
           create: (_) =>

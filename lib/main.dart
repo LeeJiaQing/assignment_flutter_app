@@ -2,8 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/di/app_dependencies.dart';
 import 'core/local/local_database.dart';
 import 'core/repositories/auth_repository.dart';
+import 'core/repositories/facility_repository.dart';
+import 'core/repositories/offline_facility_repository.dart';
 import 'core/repositories/offline_booking_repository.dart';
 import 'core/services/connectivity_service.dart';
 import 'core/services/sync_service.dart';
@@ -46,7 +49,15 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    final dependencies = AppDependencies(
+      authRepository: AuthRepository(),
+      facilityRepository: FacilityRepository(),
+      offlineFacilityRepository: OfflineFacilityRepository(),
+    );
+
+    return Provider.value(
+      value: dependencies,
+      child: MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -75,8 +86,9 @@ class MainApp extends StatelessWidget {
         '/notifications': (_) => const NotificationScreen(),
         '/profile/edit': (_) => ChangeNotifierProvider(
           create: (_) =>
-          ProfileViewModel(authRepository: AuthRepository())
-            ..loadProfile(),
+          ProfileViewModel(
+            authRepository: context.read<AppDependencies>().authRepository,
+          )..loadProfile(),
           child: const EditProfileScreen(),
         ),
         '/party/create': (_) => const CreatePartyScreen(),
@@ -100,6 +112,7 @@ class MainApp extends StatelessWidget {
             return null;
         }
       },
+      ),
     );
   }
 }
