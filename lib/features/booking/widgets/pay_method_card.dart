@@ -7,11 +7,13 @@ class PayMethodCard extends StatelessWidget {
   const PayMethodCard({
     super.key,
     required this.method,
+    required this.detailText,
     required this.selectedMethod,
     required this.onChanged,
   });
 
   final PayMethod method;
+  final String detailText;
   final PayMethod selectedMethod;
   final ValueChanged<PayMethod> onChanged;
 
@@ -25,17 +27,6 @@ class PayMethodCard extends StatelessWidget {
         return Icons.credit_card_outlined;
       case PayMethod.banking:
         return Icons.account_balance_outlined;
-    }
-  }
-
-  String get _detail {
-    switch (method) {
-      case PayMethod.tng:
-        return '60*****1234';
-      case PayMethod.card:
-        return '4621 **** **** ****';
-      case PayMethod.banking:
-        return 'Maybank';
     }
   }
 
@@ -87,7 +78,7 @@ class PayMethodCard extends StatelessWidget {
                         fontWeight: FontWeight.w600, fontSize: 13),
                   ),
                   Text(
-                    _detail,
+                    detailText,
                     style: const TextStyle(
                         fontSize: 11, color: Colors.grey),
                   ),
