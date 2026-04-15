@@ -125,10 +125,71 @@ class BookingRepository {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('User not signed in');
 
+    final bookingRows = await supabase
+        .from('bookings')
+        .select('id, facility_id, status')
+        .eq('id', bookingId)
+        .eq('user_id', userId)
+        .limit(1);
+
+    if ((bookingRows as List<dynamic>).isEmpty) return;
+
+    final booking = bookingRows.first as Map<String, dynamic>;
+    final status = booking['status'] as String? ?? '';
+    if (status == 'cancelled') return;
+
     await supabase
         .from('bookings')
         .update({'status': 'cancelled'})
         .eq('id', bookingId)
         .eq('user_id', userId);
+
+    try {
+      final paymentRows = await supabase
+          .from('payments')
+          .select('amount')
+          .eq('booking_id', bookingId)
+          .eq('user_id', userId)
+          .limit(1);
+
+      if ((paymentRows as List<dynamic>).isEmpty) return;
+
+      final amount =
+          (paymentRows.first as Map<String, dynamic>)['amount'] as num;
+      final paidAmount = amount.toDouble();
+      final earnedPointsToReverse = paidAmount.floor();
+
+      if (earnedPointsToReverse > 0) {
+        await supabase.from('reward_transactions').insert({
+          'user_id': userId,
+          'points': -earnedPointsToReverse,
+          'description': 'Reversal: cancelled booking $bookingId',
+        });
+      }
+
+      final facilityId = booking['facility_id'] as String?;
+      if (facilityId == null) return;
+
+      final facility = await supabase
+          .from('facilities')
+          .select('price_per_slot')
+          .eq('id', facilityId)
+          .single();
+
+      final fullPrice = (facility['price_per_slot'] as num).toDouble();
+      final discount = (fullPrice - paidAmount).clamp(0, fullPrice);
+      final pointsToRefund = (discount * 100).round();
+
+      if (pointsToRefund > 0) {
+        await supabase.from('reward_transactions').insert({
+          'user_id': userId,
+          'points': pointsToRefund,
+          'description':
+              'Refund: redeemed points for cancelled booking $bookingId',
+        });
+      }
+    } catch (_) {
+      // Do not fail cancellation if rewards reconciliation fails.
+    }
   }
 }
