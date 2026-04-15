@@ -108,6 +108,7 @@ class _PaymentView extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 10),
               child: PayMethodCard(
                 method: m,
+                detailText: vm.methodDetailLabel(m),
                 selectedMethod: vm.selectedMethod,
                 onChanged: vm.selectMethod,
               ),
