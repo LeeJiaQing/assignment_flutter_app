@@ -159,33 +159,37 @@ class BookingRepository {
       final paidAmount = amount.toDouble();
       final earnedPointsToReverse = paidAmount.floor();
 
-      if (earnedPointsToReverse > 0) {
-        await supabase.from('reward_transactions').insert({
-          'user_id': userId,
-          'points': -earnedPointsToReverse,
-          'description': 'Reversal: cancelled booking $bookingId',
-        });
-      }
-
       final facilityId = booking['facility_id'] as String?;
       if (facilityId == null) return;
 
       final facility = await supabase
           .from('facilities')
-          .select('price_per_slot')
+          .select('name, price_per_slot')
           .eq('id', facilityId)
           .single();
 
+      final facilityName = (facility['name'] as String?) ?? 'facility';
       final fullPrice = (facility['price_per_slot'] as num).toDouble();
       final discount = (fullPrice - paidAmount).clamp(0, fullPrice);
       final pointsToRefund = (discount * 100).round();
+      final deductedLabel =
+          'Deducted from cancelled booking at $facilityName';
+      final returnedLabel =
+          'Returned from cancelled booking at $facilityName';
 
       if (pointsToRefund > 0) {
         await supabase.from('reward_transactions').insert({
           'user_id': userId,
           'points': pointsToRefund,
-          'description':
-              'Refund: redeemed points for cancelled booking $bookingId',
+          'description': returnedLabel,
+        });
+      }
+
+      if (earnedPointsToReverse > 0) {
+        await supabase.from('reward_transactions').insert({
+          'user_id': userId,
+          'points': -earnedPointsToReverse,
+          'description': deductedLabel,
         });
       }
     } catch (_) {
