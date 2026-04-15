@@ -75,6 +75,9 @@ class PaymentViewModel extends ChangeNotifier {
   int _availablePoints = 0;
   bool _useRewardPoints = false;
   int _pointsToRedeem = 0;
+  String? _tngPhone;
+  String? _cardNumber;
+  String? _selectedBank;
 
   PayMethod get selectedMethod => _selectedMethod;
   PaymentStatus get status => _status;
@@ -84,6 +87,9 @@ class PaymentViewModel extends ChangeNotifier {
   int get availablePoints => _availablePoints;
   bool get useRewardPoints => _useRewardPoints;
   int get pointsToRedeem => _pointsToRedeem;
+  String? get tngPhone => _tngPhone;
+  String? get cardNumber => _cardNumber;
+  String? get selectedBank => _selectedBank;
 
   double get rewardDiscount =>
       _useRewardPoints ? (_pointsToRedeem / 100.0) : 0.0;
@@ -91,8 +97,7 @@ class PaymentViewModel extends ChangeNotifier {
       (_originalTotal - rewardDiscount).clamp(0, double.infinity);
 
   Future<void> _loadAvailablePoints() async {
-    _availablePoints =
-    await RewardPointsViewModel.getAvailablePoints();
+    _availablePoints = await RewardPointsViewModel.getAvailablePoints();
     final maxByOrder = (_originalTotal * 0.5 * 100).floor();
     _pointsToRedeem = _availablePoints < maxByOrder
         ? _availablePoints
@@ -110,7 +115,59 @@ class PaymentViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void saveTngPhone(String phone) {
+    _tngPhone = phone.trim();
+    notifyListeners();
+  }
+
+  void saveCardNumber(String cardNo) {
+    final digitsOnly = cardNo.replaceAll(RegExp(r'\s+'), '');
+    _cardNumber = digitsOnly;
+    notifyListeners();
+  }
+
+  void saveBank(String bank) {
+    _selectedBank = bank;
+    notifyListeners();
+  }
+
+  bool get isSelectedMethodConfigured {
+    switch (_selectedMethod) {
+      case PayMethod.tng:
+        return (_tngPhone ?? '').isNotEmpty;
+      case PayMethod.card:
+        return (_cardNumber ?? '').length >= 12;
+      case PayMethod.banking:
+        return (_selectedBank ?? '').isNotEmpty;
+    }
+  }
+
+  String get selectedMethodSetupLabel {
+    switch (_selectedMethod) {
+      case PayMethod.tng:
+        if ((_tngPhone ?? '').isEmpty) return 'Not set up yet';
+        return 'Phone: $_tngPhone';
+      case PayMethod.card:
+        final card = _cardNumber ?? '';
+        if (card.isEmpty) return 'Not set up yet';
+        final suffix =
+            card.length >= 4 ? card.substring(card.length - 4) : card;
+        return 'Card ending •••• $suffix';
+      case PayMethod.banking:
+        if ((_selectedBank ?? '').isEmpty) return 'Not set up yet';
+        return 'Bank: $_selectedBank';
+    }
+  }
+
   Future<void> processPayment() async {
+    if (!isSelectedMethodConfigured) {
+      _errorMessage =
+          'Please set up ${_selectedMethod.label} details before paying.';
+      _status = PaymentStatus.error;
+      notifyListeners();
+      return;
+    }
+
     _status = PaymentStatus.processing;
     _errorMessage = null;
     notifyListeners();
@@ -133,8 +190,8 @@ class PaymentViewModel extends ChangeNotifier {
         );
 
         final double slotAmount =
-        (item.pricePerSlot - (rewardDiscount / items.length))
-            .clamp(0, double.infinity);
+            (item.pricePerSlot - (rewardDiscount / items.length))
+                .clamp(0, double.infinity);
 
         await _service.createPayment(
           bookingId: booking.id,
@@ -148,8 +205,8 @@ class PaymentViewModel extends ChangeNotifier {
 
       await RewardPointsViewModel.earnPoints(
         amount: grandTotal,
-        description:
-        'Earned from booking at ${items.isNotEmpty ? items.first.facilityName : "facility"}',
+        description: 'Earned from booking at '
+            '${items.isNotEmpty ? items.first.facilityName : "facility"}',
       );
 
       _status = PaymentStatus.success;

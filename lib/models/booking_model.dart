@@ -31,11 +31,11 @@ class TimeSlot {
 
   SlotStatus effectiveStatus(DateTime now) {
     if (status == SlotStatus.booked) return SlotStatus.booked;
-    final slotStart = DateTime(date.year, date.month, date.day, startHour);
-    // Treat slot as expired as soon as its start time is reached.
-    // Using only `isBefore` can leave boundary-time cases (exact hour)
-    // incorrectly shown as available on some devices.
-    if (!slotStart.isAfter(now)) return SlotStatus.expired;
+    final slotEnd = DateTime(date.year, date.month, date.day, endHour);
+    // Expire once the slot has fully ended.
+    // Example: at 12:00, slots ending at 12:00 are expired, while 12:00–13:00
+    // remains bookable.
+    if (!slotEnd.isAfter(now)) return SlotStatus.expired;
     return SlotStatus.available;
   }
 }
