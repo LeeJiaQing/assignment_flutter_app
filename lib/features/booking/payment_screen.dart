@@ -108,11 +108,14 @@ class _PaymentView extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 10),
               child: PayMethodCard(
                 method: m,
+                detailText: vm.methodDetailLabel(m),
                 selectedMethod: vm.selectedMethod,
                 onChanged: vm.selectMethod,
               ),
             ),
           ),
+          const SizedBox(height: 6),
+          _PaymentMethodSetupCard(vm: vm),
         ],
       ),
       bottomSheet: _PaymentBottomBar(
@@ -301,6 +304,171 @@ class _OrderSummaryCard extends StatelessWidget {
             bold: true,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PaymentMethodSetupCard extends StatelessWidget {
+  const _PaymentMethodSetupCard({required this.vm});
+  final PaymentViewModel vm;
+
+  @override
+  Widget build(BuildContext context) {
+    final configured = vm.isSelectedMethodConfigured;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: configured ? const Color(0xFF1C894E) : Colors.orange.shade300,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            configured ? Icons.verified_outlined : Icons.edit_outlined,
+            color: configured ? const Color(0xFF1C894E) : Colors.orange.shade700,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Payment Setup',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  vm.selectedMethodSetupLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: configured ? Colors.black87 : Colors.orange.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () => _showSetupDialog(context, vm),
+            child: const Text('Edit'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSetupDialog(BuildContext context, PaymentViewModel vm) {
+    switch (vm.selectedMethod) {
+      case PayMethod.tng:
+        _showTngDialog(context, vm);
+        break;
+      case PayMethod.card:
+        _showCardDialog(context, vm);
+        break;
+      case PayMethod.banking:
+        _showBankDialog(context, vm);
+        break;
+    }
+  }
+
+  void _showTngDialog(BuildContext context, PaymentViewModel vm) {
+    final controller = TextEditingController(text: vm.tngPhone ?? '');
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Set up Touch 'n Go"),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'Phone number',
+            hintText: 'e.g. 0123456789',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              vm.saveTngPhone(controller.text);
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCardDialog(BuildContext context, PaymentViewModel vm) {
+    final controller = TextEditingController(text: vm.cardNumber ?? '');
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Set up Card'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Card number',
+            hintText: 'Enter card number',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              vm.saveCardNumber(controller.text);
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBankDialog(BuildContext context, PaymentViewModel vm) {
+    const banks = ['Maybank', 'CIMB', 'Public Bank', 'RHB', 'Hong Leong'];
+    var selected = vm.selectedBank ?? banks.first;
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Select Bank'),
+          content: DropdownButtonFormField<String>(
+            value: selected,
+            items: banks
+                .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                .toList(),
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() => selected = v);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                vm.saveBank(selected);
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
   }
