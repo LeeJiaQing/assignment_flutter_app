@@ -71,6 +71,20 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> doesEmailExist(String email) => _repo.doesEmailExist(email);
+
+  Future<void> sendPasswordResetCode(String email) =>
+      _repo.sendPasswordResetCode(email);
+
+  Future<bool> verifyPasswordResetCode({
+    required String email,
+    required String code,
+  }) =>
+      _repo.verifyPasswordResetCode(email: email, code: code);
+
+  Future<void> updatePassword(String newPassword) =>
+      _repo.updatePassword(newPassword);
+
   String _parseError(String raw) {
     debugPrint('Auth error raw: $raw');
     if (raw.contains('Invalid login credentials') ||
