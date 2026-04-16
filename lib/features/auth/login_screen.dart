@@ -259,10 +259,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _showForgotPasswordDialog(
-    BuildContext context,
+    BuildContext screenContext,
     AuthViewModel vm,
   ) async {
-    final messenger = ScaffoldMessenger.of(context);
     final emailController = TextEditingController(text: _emailController.text);
     final codeController = TextEditingController();
     final newPasswordController = TextEditingController();
@@ -299,7 +298,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await showDialog<void>(
-        context: context,
+        context: screenContext,
         barrierDismissible: false,
         builder: (dialogContext) {
           return PopScope(
@@ -601,13 +600,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                   await vm.updatePassword(password);
                                   if (!mounted) return;
                                   isDialogOpen = false;
-                                  Navigator.of(dialogContext).pop();
-                                  messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Password updated successfully. Please login with your new password.'),
-                                    ),
-                                  );
+                                  if (Navigator.of(dialogContext).canPop()) {
+                                    Navigator.of(dialogContext).pop();
+                                  }
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.maybeOf(screenContext)
+                                        ?.showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Password updated successfully. Please login with your new password.'),
+                                      ),
+                                    );
+                                  });
                                 } catch (e) {
                                   setState(() {
                                     message = 'Failed to update password: $e';
