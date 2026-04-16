@@ -1,6 +1,8 @@
 // lib/features/rewardPoints/viewmodels/reward_points_view_model.dart
 import 'package:flutter/material.dart';
 
+import '../../../core/local/local_reward_cache.dart';
+import '../../../core/services/connectivity_service.dart';
 import '../../../core/supabase/supabase_config.dart';
 
 enum RewardStatus { initial, loading, loaded, error }
@@ -35,6 +37,8 @@ class RewardPointsViewModel extends ChangeNotifier {
   List<RewardTransaction> _transactions = [];
   String? _errorMessage;
 
+  final LocalRewardCache _cache = LocalRewardCache();
+
   RewardStatus get status => _status;
   int get totalPoints => _totalPoints;
   List<RewardTransaction> get transactions => _transactions;
@@ -45,25 +49,39 @@ class RewardPointsViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) {
+      _status = RewardStatus.loaded;
+      _transactions = [];
+      _totalPoints = 0;
+      notifyListeners();
+      return;
+    }
+
     try {
-      final userId = supabase.auth.currentUser?.id;
-      if (userId == null) {
+      if (ConnectivityService.instance.isOnline) {
+        final response = await supabase
+            .from('reward_transactions')
+            .select()
+            .eq('user_id', userId)
+            .order('created_at', ascending: false);
+
+        _transactions = (response as List<dynamic>)
+            .map((json) => RewardTransaction.fromJson(json as Map<String, dynamic>))
+            .toList();
+        await _cache.saveTransactions(userId: userId, transactions: _transactions);
+
+        _totalPoints = _transactions.fold(0, (sum, t) => sum + t.points);
         _status = RewardStatus.loaded;
         notifyListeners();
         return;
       }
+    } catch (_) {
+      // Fall back to cache
+    }
 
-      final response = await supabase
-          .from('reward_transactions')
-          .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
-
-      _transactions = (response as List<dynamic>)
-          .map((json) => RewardTransaction.fromJson(
-          json as Map<String, dynamic>))
-          .toList();
-
+    try {
+      _transactions = await _cache.getTransactions(userId: userId, ignoreExpiry: true);
       _totalPoints = _transactions.fold(0, (sum, t) => sum + t.points);
       _status = RewardStatus.loaded;
     } catch (e) {
