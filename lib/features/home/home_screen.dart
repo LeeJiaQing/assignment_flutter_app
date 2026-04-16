@@ -2,63 +2,44 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/repositories/offline_facility_repository.dart';
-import '../../core/supabase/supabase_config.dart';
+import '../../core/di/app_dependencies.dart';
 import '../../models/facility_model.dart';
 import '../booking/booking_screen.dart';
 import '../facility/viewmodels/facility_view_model.dart';
+import 'viewmodels/home_view_model.dart';
 import '../facility/facility_detail_screen.dart';
 import '../notification/notification_screen.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  String? _userName;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserName();
-  }
-
-  Future<void> _loadUserName() async {
-    try {
-      final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return;
-      final response = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', userId)
-          .maybeSingle();
-      if (response != null && mounted) {
-        setState(() => _userName = response['full_name'] as String?);
-      }
-    } catch (_) {}
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) =>
-          FacilityViewModel(facilityRepository: OfflineFacilityRepository())
-            ..loadFacilities(),
-      child: _HomeView(userName: _userName),
+    final dependencies = context.read<AppDependencies>();
+
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => HomeViewModel()..loadUserName(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => FacilityViewModel(
+            facilityRepository: dependencies.offlineFacilityRepository,
+          )..loadFacilities(),
+        ),
+      ],
+      child: const _HomeView(),
     );
   }
 }
 
 class _HomeView extends StatelessWidget {
-  const _HomeView({this.userName});
-  final String? userName;
+  const _HomeView();
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<FacilityViewModel>();
+    final homeVm = context.watch<HomeViewModel>();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4FAF6),
@@ -68,7 +49,7 @@ class _HomeView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Header ──────────────────────────────────────────────────
-              _buildHeader(context),
+              _buildHeader(context, homeVm.userName),
 
               // ── Search bar ──────────────────────────────────────────────
               _buildSearchBar(context, vm),
@@ -92,7 +73,7 @@ class _HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, String? userName) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       decoration: const BoxDecoration(

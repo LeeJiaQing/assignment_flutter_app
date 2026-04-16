@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/di/app_dependencies.dart';
 import 'viewmodels/auth_view_model.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -29,7 +30,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => AuthViewModel(),
+      create: (context) => AuthViewModel(
+        authRepository: context.read<AppDependencies>().authRepository,
+      ),
       child: Builder(builder: (context) {
         final vm = context.watch<AuthViewModel>();
 
