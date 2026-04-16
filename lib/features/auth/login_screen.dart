@@ -262,6 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
     BuildContext context,
     AuthViewModel vm,
   ) async {
+    final messenger = ScaffoldMessenger.of(context);
     final emailController = TextEditingController(text: _emailController.text);
     final codeController = TextEditingController();
     final newPasswordController = TextEditingController();
@@ -273,6 +274,9 @@ class _LoginScreenState extends State<LoginScreen> {
     var isBusy = false;
     var message = '';
     var secondsLeft = 0;
+    var obscureNewPassword = true;
+    var obscureConfirmPassword = true;
+    var isDialogOpen = true;
     Timer? timer;
 
     void startCountdown(void Function(void Function()) setState) {
@@ -298,14 +302,16 @@ class _LoginScreenState extends State<LoginScreen> {
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) {
-          return StatefulBuilder(
-            builder: (context, setState) {
-              return AlertDialog(
-                title: const Text('Reset Password'),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+          return PopScope(
+            canPop: false,
+            child: StatefulBuilder(
+              builder: (builderContext, setState) {
+                return AlertDialog(
+                  title: const Text('Reset Password'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                       TextField(
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -363,21 +369,47 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                       TextField(
                         controller: newPasswordController,
-                        obscureText: true,
+                        obscureText: obscureNewPassword,
                         enabled: codeVerified,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'New password',
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureNewPassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                            onPressed: !codeVerified
+                                ? null
+                                : () => setState(
+                                      () => obscureNewPassword =
+                                          !obscureNewPassword,
+                                    ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: confirmPasswordController,
-                        obscureText: true,
+                        obscureText: obscureConfirmPassword,
                         enabled: codeVerified,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Confirm new password',
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureConfirmPassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                            onPressed: !codeVerified
+                                ? null
+                                : () => setState(
+                                      () => obscureConfirmPassword =
+                                          !obscureConfirmPassword,
+                                    ),
+                          ),
                         ),
                       ),
                       if (message.isNotEmpty) ...[
@@ -392,14 +424,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                actions: [
+                  actions: [
                   TextButton(
                     onPressed: isBusy
                         ? null
                         : () {
+                            isDialogOpen = false;
                             timer?.cancel();
                             Navigator.of(dialogContext).pop();
                           },
@@ -410,7 +443,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: isBusy
                           ? null
                           : () async {
-                              FocusScope.of(context).unfocus();
+                              FocusScope.of(builderContext).unfocus();
                               final email = emailController.text.trim();
                               if (email.isEmpty) {
                                 setState(() {
@@ -448,6 +481,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   message = 'Failed to send code: $e';
                                 });
                               } finally {
+                                if (!isDialogOpen) return;
                                 setState(() => isBusy = false);
                               }
                             },
@@ -474,6 +508,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   message = 'Failed to resend code: $e';
                                 });
                               } finally {
+                                if (!isDialogOpen) return;
                                 setState(() => isBusy = false);
                               }
                             },
@@ -530,6 +565,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         'Invalid code. Please try again.';
                                   });
                                 } finally {
+                                  if (!isDialogOpen) return;
                                   setState(() => isBusy = false);
                                 }
                               },
@@ -563,9 +599,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 });
                                 try {
                                   await vm.updatePassword(password);
-                                  if (!context.mounted) return;
+                                  if (!mounted) return;
+                                  isDialogOpen = false;
                                   Navigator.of(dialogContext).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  messenger.showSnackBar(
                                     const SnackBar(
                                       content: Text(
                                           'Password updated successfully. Please login with your new password.'),
@@ -576,15 +613,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                     message = 'Failed to update password: $e';
                                   });
                                 } finally {
+                                  if (!isDialogOpen) return;
                                   setState(() => isBusy = false);
                                 }
                               },
                         child: const Text('Change password'),
                       ),
                   ],
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           );
         },
       );
