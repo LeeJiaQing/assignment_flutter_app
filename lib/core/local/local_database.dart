@@ -31,7 +31,7 @@ class LocalDatabase {
 
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -98,6 +98,31 @@ class LocalDatabase {
         synced INTEGER NOT NULL DEFAULT 0
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE notification_cache (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        type TEXT,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        data_json TEXT,
+        is_read INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        cached_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE reward_transaction_cache (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        points INTEGER NOT NULL,
+        description TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        cached_at INTEGER NOT NULL
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -114,6 +139,33 @@ class LocalDatabase {
           method TEXT NOT NULL,
           created_at INTEGER NOT NULL,
           synced INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+    }
+
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS notification_cache (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          type TEXT,
+          title TEXT NOT NULL,
+          body TEXT NOT NULL,
+          data_json TEXT,
+          is_read INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          cached_at INTEGER NOT NULL
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS reward_transaction_cache (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          points INTEGER NOT NULL,
+          description TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          cached_at INTEGER NOT NULL
         )
       ''');
     }

@@ -57,15 +57,10 @@ class _SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: const Icon(Icons.sports_tennis,
-                  color: Color(0xFF1C894E), size: 44),
+            Image.asset(
+              'assets/images/logo.png',
+              width: 100,
+              height: 100,
             ),
             const SizedBox(height: 16),
             const Text(

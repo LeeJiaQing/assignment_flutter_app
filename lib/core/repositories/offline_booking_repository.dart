@@ -2,6 +2,7 @@
 import '../../models/booking_model.dart';
 import '../local/local_booking_cache.dart';
 import '../services/connectivity_service.dart';
+import '../supabase/supabase_config.dart';
 import 'booking_repository.dart';
 
 /// Wraps [BookingRepository] with SQLite caching and offline-queue support.
@@ -48,7 +49,10 @@ class OfflineBookingRepository {
         // fall through
       }
     }
-    return _cache.getMyBookings(ignoreExpiry: true);
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return [];
+
+    return _cache.getMyBookings(userId: userId, ignoreExpiry: true);
   }
 
   // ── Writes ─────────────────────────────────────────────────────────────────
