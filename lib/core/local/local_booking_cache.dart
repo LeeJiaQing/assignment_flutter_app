@@ -40,29 +40,37 @@ class LocalBookingCache {
 
   // ── Read ───────────────────────────────────────────────────────────────────
 
-  Future<List<Booking>> getMyBookings({bool ignoreExpiry = false}) async {
+  Future<List<Booking>> getMyBookings({
+    required String userId,
+    bool ignoreExpiry = false,
+  }) async {
     final db = await _db.database;
     final cutoff = DateTime.now().millisecondsSinceEpoch - _kBookingTtlMs;
 
     final rows = ignoreExpiry
-        ? await db.query('bookings', orderBy: 'date DESC')
+        ? await db.query(
+            'bookings',
+            where: 'user_id = ?',
+            whereArgs: [userId],
+            orderBy: 'date DESC',
+          )
         : await db.query(
-      'bookings',
-      where: 'cached_at > ?',
-      whereArgs: [cutoff],
-      orderBy: 'date DESC',
-    );
+            'bookings',
+            where: 'user_id = ? AND cached_at > ?',
+            whereArgs: [userId, cutoff],
+            orderBy: 'date DESC',
+          );
 
     return rows.map(_rowToBooking).toList();
   }
 
-  Future<bool> hasFreshData() async {
+  Future<bool> hasFreshData({required String userId}) async {
     final db = await _db.database;
     final cutoff = DateTime.now().millisecondsSinceEpoch - _kBookingTtlMs;
     final result = await db.query(
       'bookings',
-      where: 'cached_at > ?',
-      whereArgs: [cutoff],
+      where: 'user_id = ? AND cached_at > ?',
+      whereArgs: [userId, cutoff],
       limit: 1,
     );
     return result.isNotEmpty;
