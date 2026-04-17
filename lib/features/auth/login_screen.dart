@@ -262,338 +262,364 @@ class _LoginScreenState extends State<LoginScreen> {
     BuildContext context,
     AuthViewModel vm,
   ) async {
-    final emailController = TextEditingController(text: _emailController.text);
-    final codeController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
+    final success = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _ForgotPasswordDialog(
+        vm: vm,
+        initialEmail: _emailController.text,
+      ),
+    );
 
-    var codeSent = false;
-    var codeVerified = false;
-    var invalidEmail = false;
-    var isBusy = false;
-    var message = '';
-    var secondsLeft = 0;
-    Timer? timer;
+    if (!mounted || success != true) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(
+        content: Text(
+            'Password updated successfully. Please login with your new password.'),
+      ),
+    );
+  }
+}
 
-    void startCountdown(void Function(void Function()) setState) {
-      timer?.cancel();
-      setState(() => secondsLeft = 60);
-      timer = Timer.periodic(const Duration(seconds: 1), (t) {
-        if (!mounted) {
+class _ForgotPasswordDialog extends StatefulWidget {
+  const _ForgotPasswordDialog({required this.vm, required this.initialEmail});
+
+  final AuthViewModel vm;
+  final String initialEmail;
+
+  @override
+  State<_ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
+}
+
+class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
+  late final TextEditingController _emailController;
+  final _codeController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  bool _codeSent = false;
+  bool _codeVerified = false;
+  bool _invalidEmail = false;
+  bool _isBusy = false;
+  String _message = '';
+  int _secondsLeft = 0;
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _emailController.dispose();
+    _codeController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  void _startCountdown() {
+    _timer?.cancel();
+    setState(() => _secondsLeft = 60);
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() {
+        if (_secondsLeft > 0) {
+          _secondsLeft--;
+        } else {
           t.cancel();
-          return;
         }
-        setState(() {
-          if (secondsLeft > 0) {
-            secondsLeft--;
-          } else {
-            t.cancel();
-          }
-        });
       });
-    }
+    });
+  }
 
-    try {
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          return StatefulBuilder(
-            builder: (context, setState) {
-              return AlertDialog(
-                title: const Text('Reset Password'),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          errorText:
-                              invalidEmail ? 'Invalid email address.' : null,
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: invalidEmail
-                                  ? Colors.red
-                                  : Colors.grey.shade400,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: invalidEmail
-                                  ? Colors.red
-                                  : const Color(0xFF1C894E),
-                              width: 1.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (codeSent) ...[
-                        TextField(
-                          controller: codeController,
-                          keyboardType: TextInputType.number,
-                          maxLength: 6,
-                          decoration: const InputDecoration(
-                            labelText: '6-digit verification code',
-                            border: OutlineInputBorder(),
-                            counterText: '',
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (secondsLeft > 0)
-                          Text(
-                            'Code expires in ${secondsLeft}s',
-                            style: const TextStyle(
-                              color: Colors.orange,
-                              fontSize: 12,
-                            ),
-                          )
-                        else
-                          const Text(
-                            'Code expired. You can resend a new code.',
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontSize: 12,
-                            ),
-                          ),
-                        const SizedBox(height: 12),
-                      ],
-                      TextField(
-                        controller: newPasswordController,
-                        obscureText: true,
-                        enabled: codeVerified,
-                        decoration: const InputDecoration(
-                          labelText: 'New password',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: confirmPasswordController,
-                        obscureText: true,
-                        enabled: codeVerified,
-                        decoration: const InputDecoration(
-                          labelText: 'Confirm new password',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      if (message.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          message,
-                          style: TextStyle(
-                            color: message.toLowerCase().contains('success')
-                                ? Colors.green
-                                : Colors.red,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ],
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: const Text('Reset Password'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  errorText: _invalidEmail ? 'Invalid email address.' : null,
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: _invalidEmail ? Colors.red : Colors.grey.shade400,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: _invalidEmail ? Colors.red : const Color(0xFF1C894E),
+                      width: 1.5,
+                    ),
                   ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: isBusy
-                        ? null
-                        : () {
-                            timer?.cancel();
-                            Navigator.of(dialogContext).pop();
-                          },
-                    child: const Text('Close'),
+              ),
+              const SizedBox(height: 12),
+              if (_codeSent) ...[
+                TextField(
+                  controller: _codeController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  decoration: const InputDecoration(
+                    labelText: '6-digit verification code',
+                    border: OutlineInputBorder(),
+                    counterText: '',
                   ),
-                  if (!codeSent)
-                    ElevatedButton(
-                      onPressed: isBusy
-                          ? null
-                          : () async {
-                              FocusScope.of(context).unfocus();
-                              final email = emailController.text.trim();
-                              if (email.isEmpty) {
-                                setState(() {
-                                  invalidEmail = true;
-                                  message = 'Email is required.';
-                                });
-                                return;
-                              }
-
-                              setState(() {
-                                isBusy = true;
-                                invalidEmail = false;
-                                message = '';
-                              });
-
-                              try {
-                                final exists = await vm.doesEmailExist(email);
-                                if (!exists) {
-                                  setState(() {
-                                    invalidEmail = true;
-                                    message = 'Invalid email address.';
-                                  });
-                                  return;
-                                }
-
-                                await vm.sendPasswordResetCode(email);
-                                setState(() {
-                                  codeSent = true;
-                                  message =
-                                      'Verification code sent to your email.';
-                                });
-                                startCountdown(setState);
-                              } catch (e) {
-                                setState(() {
-                                  message = 'Failed to send code: $e';
-                                });
-                              } finally {
-                                setState(() => isBusy = false);
-                              }
-                            },
-                      child: const Text('Send code'),
-                    )
-                  else ...[
-                    TextButton(
-                      onPressed: isBusy || secondsLeft > 0
-                          ? null
-                          : () async {
-                              final email = emailController.text.trim();
-                              setState(() {
-                                isBusy = true;
-                                message = '';
-                              });
-                              try {
-                                await vm.sendPasswordResetCode(email);
-                                setState(() {
-                                  message = 'New verification code sent.';
-                                });
-                                startCountdown(setState);
-                              } catch (e) {
-                                setState(() {
-                                  message = 'Failed to resend code: $e';
-                                });
-                              } finally {
-                                setState(() => isBusy = false);
-                              }
-                            },
-                      child: const Text('Resend code'),
+                ),
+                const SizedBox(height: 4),
+                if (_secondsLeft > 0)
+                  Text(
+                    'Code expires in ${_secondsLeft}s',
+                    style: const TextStyle(color: Colors.orange, fontSize: 12),
+                  )
+                else
+                  const Text(
+                    'Code expired. You can resend a new code.',
+                    style: TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+                const SizedBox(height: 12),
+              ],
+              TextField(
+                controller: _newPasswordController,
+                obscureText: _obscureNewPassword,
+                enabled: _codeVerified,
+                decoration: InputDecoration(
+                  labelText: 'New password',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureNewPassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                     ),
-                    if (!codeVerified)
-                      ElevatedButton(
-                        onPressed: isBusy
-                            ? null
-                            : () async {
-                                final email = emailController.text.trim();
-                                final code = codeController.text.trim();
-                                if (secondsLeft <= 0) {
-                                  setState(() {
-                                    message =
-                                        'Code expired. Please resend and try again.';
-                                  });
-                                  return;
-                                }
-                                if (code.length != 6) {
-                                  setState(() {
-                                    message =
-                                        'Please enter the 6-digit verification code.';
-                                  });
-                                  return;
-                                }
+                    onPressed: !_codeVerified
+                        ? null
+                        : () => setState(
+                              () => _obscureNewPassword = !_obscureNewPassword,
+                            ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _confirmPasswordController,
+                obscureText: _obscureConfirmPassword,
+                enabled: _codeVerified,
+                decoration: InputDecoration(
+                  labelText: 'Confirm new password',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
+                    onPressed: !_codeVerified
+                        ? null
+                        : () => setState(
+                              () => _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                            ),
+                  ),
+                ),
+              ),
+              if (_message.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _message,
+                  style: TextStyle(
+                    color: _message.toLowerCase().contains('success')
+                        ? Colors.green
+                        : Colors.red,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _isBusy
+                ? null
+                : () {
+                    _timer?.cancel();
+                    Navigator.of(context).pop(false);
+                  },
+            child: const Text('Close'),
+          ),
+          if (!_codeSent)
+            ElevatedButton(
+              onPressed: _isBusy ? null : _onSendCode,
+              child: const Text('Send code'),
+            )
+          else ...[
+            TextButton(
+              onPressed: _isBusy || _secondsLeft > 0 ? null : _onResendCode,
+              child: const Text('Resend code'),
+            ),
+            if (!_codeVerified)
+              ElevatedButton(
+                onPressed: _isBusy ? null : _onVerifyCode,
+                child: const Text('Verify code'),
+              ),
+            if (_codeVerified)
+              ElevatedButton(
+                onPressed: _isBusy ? null : _onChangePassword,
+                child: const Text('Change password'),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
 
-                                setState(() {
-                                  isBusy = true;
-                                  message = '';
-                                });
-                                try {
-                                  final verified =
-                                      await vm.verifyPasswordResetCode(
-                                    email: email,
-                                    code: code,
-                                  );
-                                  if (verified) {
-                                    timer?.cancel();
-                                    setState(() {
-                                      codeVerified = true;
-                                      message =
-                                          'Code verified. You can now set a new password.';
-                                    });
-                                  } else {
-                                    setState(() {
-                                      message =
-                                          'Invalid code. Please try again.';
-                                    });
-                                  }
-                                } catch (_) {
-                                  setState(() {
-                                    message =
-                                        'Invalid code. Please try again.';
-                                  });
-                                } finally {
-                                  setState(() => isBusy = false);
-                                }
-                              },
-                        child: const Text('Verify code'),
-                      ),
-                    if (codeVerified)
-                      ElevatedButton(
-                        onPressed: isBusy
-                            ? null
-                            : () async {
-                                final password = newPasswordController.text;
-                                final confirm = confirmPasswordController.text;
+  Future<void> _onSendCode() async {
+    FocusScope.of(context).unfocus();
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() {
+        _invalidEmail = true;
+        _message = 'Email is required.';
+      });
+      return;
+    }
 
-                                if (password.length < 6) {
-                                  setState(() {
-                                    message =
-                                        'Password must be at least 6 characters.';
-                                  });
-                                  return;
-                                }
-                                if (password != confirm) {
-                                  setState(() {
-                                    message = 'Password confirmation does not match.';
-                                  });
-                                  return;
-                                }
+    setState(() {
+      _isBusy = true;
+      _invalidEmail = false;
+      _message = '';
+    });
 
-                                setState(() {
-                                  isBusy = true;
-                                  message = '';
-                                });
-                                try {
-                                  await vm.updatePassword(password);
-                                  if (!context.mounted) return;
-                                  Navigator.of(dialogContext).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Password updated successfully. Please login with your new password.'),
-                                    ),
-                                  );
-                                } catch (e) {
-                                  setState(() {
-                                    message = 'Failed to update password: $e';
-                                  });
-                                } finally {
-                                  setState(() => isBusy = false);
-                                }
-                              },
-                        child: const Text('Change password'),
-                      ),
-                  ],
-                ],
-              );
-            },
-          );
-        },
-      );
+    try {
+      final exists = await widget.vm.doesEmailExist(email);
+      if (!exists) {
+        setState(() {
+          _invalidEmail = true;
+          _message = 'Invalid email address.';
+        });
+        return;
+      }
+
+      await widget.vm.sendPasswordResetCode(email);
+      if (!mounted) return;
+      setState(() {
+        _codeSent = true;
+        _message = 'Verification code sent to your email.';
+      });
+      _startCountdown();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _message = 'Failed to send code: $e');
     } finally {
-      timer?.cancel();
-      emailController.dispose();
-      codeController.dispose();
-      newPasswordController.dispose();
-      confirmPasswordController.dispose();
+      if (!mounted) return;
+      setState(() => _isBusy = false);
+    }
+  }
+
+  Future<void> _onResendCode() async {
+    final email = _emailController.text.trim();
+    setState(() {
+      _isBusy = true;
+      _message = '';
+    });
+    try {
+      await widget.vm.sendPasswordResetCode(email);
+      if (!mounted) return;
+      setState(() => _message = 'New verification code sent.');
+      _startCountdown();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _message = 'Failed to resend code: $e');
+    } finally {
+      if (!mounted) return;
+      setState(() => _isBusy = false);
+    }
+  }
+
+  Future<void> _onVerifyCode() async {
+    final email = _emailController.text.trim();
+    final code = _codeController.text.trim();
+    if (_secondsLeft <= 0) {
+      setState(() => _message = 'Code expired. Please resend and try again.');
+      return;
+    }
+    if (code.length != 6) {
+      setState(() => _message = 'Please enter the 6-digit verification code.');
+      return;
+    }
+
+    setState(() {
+      _isBusy = true;
+      _message = '';
+    });
+    try {
+      final verified = await widget.vm.verifyPasswordResetCode(
+        email: email,
+        code: code,
+      );
+      if (!mounted) return;
+      if (verified) {
+        _timer?.cancel();
+        setState(() {
+          _codeVerified = true;
+          _message = 'Code verified. You can now set a new password.';
+        });
+      } else {
+        setState(() => _message = 'Invalid code. Please try again.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _message = 'Invalid code. Please try again.');
+    } finally {
+      if (!mounted) return;
+      setState(() => _isBusy = false);
+    }
+  }
+
+  Future<void> _onChangePassword() async {
+    final password = _newPasswordController.text;
+    final confirm = _confirmPasswordController.text;
+
+    if (password.length < 6) {
+      setState(() => _message = 'Password must be at least 6 characters.');
+      return;
+    }
+    if (password != confirm) {
+      setState(() => _message = 'Password confirmation does not match.');
+      return;
+    }
+
+    setState(() {
+      _isBusy = true;
+      _message = '';
+    });
+    try {
+      await widget.vm.updatePassword(password);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _message = 'Failed to update password: $e');
+    } finally {
+      if (!mounted) return;
+      setState(() => _isBusy = false);
     }
   }
 }
