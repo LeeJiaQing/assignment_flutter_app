@@ -226,6 +226,10 @@ class PaymentViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Retry persisting latest payment setup at checkout time.
+      // This ensures edits made while offline are saved once connection returns.
+      await _persistPaymentSetup();
+
       if (_useRewardPoints && _pointsToRedeem > 0) {
         await RewardPointsViewModel.redeemPoints(
           points: _pointsToRedeem,
@@ -264,7 +268,7 @@ class PaymentViewModel extends ChangeNotifier {
 
       _status = PaymentStatus.success;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _parsePaymentError(e);
       _status = PaymentStatus.error;
     }
 
@@ -277,5 +281,21 @@ class PaymentViewModel extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
     }
+  }
+
+  String _parsePaymentError(Object error) {
+    final raw = error.toString();
+    final normalized = raw.toLowerCase();
+    final isNetworkIssue = normalized.contains('socketexception') ||
+        normalized.contains('failed host lookup') ||
+        normalized.contains('network') ||
+        normalized.contains('connection') ||
+        normalized.contains('timed out');
+
+    if (isNetworkIssue) {
+      return 'No internet connection. Unable to complete payment.';
+    }
+
+    return 'Unable to complete payment. Please try again.';
   }
 }
