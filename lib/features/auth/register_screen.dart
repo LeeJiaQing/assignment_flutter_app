@@ -118,9 +118,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Password is required';
-                        if (v.length < 6) return 'Minimum 6 characters';
-                        return null;
+                        return _validatePassword(v);
                       },
                     ),
 
@@ -252,5 +250,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       password: _passwordController.text,
       fullName: _nameController.text.trim(),
     );
+  }
+
+  String? _validatePassword(String? value) {
+    final password = value ?? '';
+    if (password.isEmpty) return 'Password is required';
+    if (password.length < 8) return 'Password must be at least 8 characters';
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      return 'Password must include at least 1 uppercase letter';
+    }
+    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>\[\]\\/_\-+=~`]').hasMatch(password)) {
+      return 'Password must include at least 1 special character';
+    }
+    return null;
   }
 }

@@ -597,8 +597,9 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
     final password = _newPasswordController.text;
     final confirm = _confirmPasswordController.text;
 
-    if (password.length < 6) {
-      setState(() => _message = 'Password must be at least 6 characters.');
+    final validationError = _validatePassword(password);
+    if (validationError != null) {
+      setState(() => _message = validationError);
       return;
     }
     if (password != confirm) {
@@ -621,5 +622,18 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       if (!mounted) return;
       setState(() => _isBusy = false);
     }
+  }
+
+  String? _validatePassword(String? value) {
+    final password = value ?? '';
+    if (password.isEmpty) return 'Password is required';
+    if (password.length < 8) return 'Password must be at least 8 characters';
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      return 'Password must include at least 1 uppercase letter';
+    }
+    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>\[\]\\/_\-+=~`]').hasMatch(password)) {
+      return 'Password must include at least 1 special character';
+    }
+    return null;
   }
 }
