@@ -1,4 +1,6 @@
 // lib/core/repositories/auth_repository.dart
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../supabase/supabase_config.dart';
 
 enum UserRole { admin, user }
@@ -62,6 +64,40 @@ class AuthRepository {
 
   Future<void> signOut() async {
     await supabase.auth.signOut();
+  }
+
+  Future<bool> doesEmailExist(String email) async {
+    final response = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+    return response != null;
+  }
+
+  Future<void> sendPasswordResetCode(String email) async {
+    await supabase.auth.signInWithOtp(
+      email: email,
+      shouldCreateUser: false,
+    );
+  }
+
+  Future<bool> verifyPasswordResetCode({
+    required String email,
+    required String code,
+  }) async {
+    final response = await supabase.auth.verifyOTP(
+      email: email,
+      token: code,
+      type: OtpType.email,
+    );
+    return response.user != null || response.session != null;
+  }
+
+  Future<void> updatePassword(String newPassword) async {
+    await supabase.auth.updateUser(
+      UserAttributes(password: newPassword),
+    );
   }
 
   bool get isSignedIn => supabase.auth.currentUser != null;

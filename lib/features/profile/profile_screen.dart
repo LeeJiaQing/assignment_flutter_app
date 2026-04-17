@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/di/app_dependencies.dart';
+import '../party/party_screen.dart';
 import 'viewmodels/profile_view_model.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_menu_item.dart';
@@ -86,6 +87,16 @@ class _ProfileView extends StatelessWidget {
                 label: 'Reward Points',
                 onTap: () =>
                     Navigator.pushNamed(context, '/rewards'),
+              ),
+              ProfileMenuItem(
+                icon: Icons.celebration_outlined,
+                label: 'Party',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PartyScreen(),
+                  ),
+                ),
               ),
             ],
           ),
