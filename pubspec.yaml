@@ -7,10 +7,12 @@ environment:
   sdk: ^3.7.2
 
 dependencies:
+  mobile_scanner: ^5.2.3
   flutter:
     sdk: flutter
   provider: ^6.1.5+1
   supabase_flutter: ^2.8.4
+
 
   # Offline / local storage
   sqflite: ^2.3.3+1

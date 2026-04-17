@@ -44,4 +44,28 @@ class SupabaseAuthRepository implements AuthRepository {
     // TODO: implement ensureProfile
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> doesEmailExist(String email) {
+    // TODO: implement doesEmailExist
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> sendPasswordResetCode(String email) {
+    // TODO: implement sendPasswordResetCode
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) {
+    // TODO: implement updatePassword
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> verifyPasswordResetCode({required String email, required String code}) {
+    // TODO: implement verifyPasswordResetCode
+    throw UnimplementedError();
+  }
 }

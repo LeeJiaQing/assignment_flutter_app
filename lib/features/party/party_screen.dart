@@ -102,45 +102,53 @@ class _SessionList extends StatelessWidget {
           ],
         ),
       ),
-      PartyStatus.loaded => vm.sessions.isEmpty
-          ? const Center(
+      PartyStatus.loaded => _buildList(context, vm),
+    };
+  }
+
+  Widget _buildList(BuildContext context, PartyViewModel vm) {
+    // Members see sessions they are NOT hosting.
+    // This hides a host's own session from the public party list.
+    final sessions = vm.sessionsExcludingOwn;
+
+    if (sessions.isEmpty) {
+      return const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.sports_soccer,
-                size: 48, color: Colors.grey),
+            Icon(Icons.sports_soccer, size: 48, color: Colors.grey),
             SizedBox(height: 12),
-            Text('No sessions yet. Be the first to host!',
-                style: TextStyle(color: Colors.grey)),
+            Text(
+              'No sessions available.\nBe the first to host!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
-      )
-          : RefreshIndicator(
-        onRefresh: () =>
-            context.read<PartyViewModel>().loadSessions(),
-        child: ListView.builder(
-          padding:
-          const EdgeInsets.fromLTRB(16, 8, 16, 80),
-          itemCount: vm.sessions.length,
-          itemBuilder: (_, i) {
-            final session = vm.sessions[i];
-            return PartySessionCard(
-              session: session,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PartyDetailChatScreen(
-                    session: session,
-                  ),
-                ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => context.read<PartyViewModel>().loadSessions(),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+        itemCount: sessions.length,
+        itemBuilder: (_, i) {
+          final session = sessions[i];
+          return PartySessionCard(
+            session: session,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    PartyDetailChatScreen(session: session),
               ),
-              onJoin: () =>
-                  _handleJoin(context, session.id),
-            );
-          },
-        ),
+            ),
+            onJoin: () => _handleJoin(context, session.id),
+          );
+        },
       ),
-    };
+    );
   }
 
   Future<void> _handleJoin(
@@ -149,11 +157,12 @@ class _SessionList extends StatelessWidget {
     await context.read<PartyViewModel>().joinSession(sessionId);
     if (!context.mounted) return;
 
+    final vm = context.read<PartyViewModel>();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(success
             ? 'You have joined the session!'
-            : 'Failed to join. Please try again.'),
+            : vm.errorMessage ?? 'Failed to join. Please try again.'),
         backgroundColor:
         success ? const Color(0xFF1C894E) : Colors.red.shade700,
       ),
