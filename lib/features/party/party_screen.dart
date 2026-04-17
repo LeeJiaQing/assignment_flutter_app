@@ -7,24 +7,39 @@ import 'widgets/party_session_card.dart';
 import 'party_chat_screen.dart';
 
 class PartyScreen extends StatelessWidget {
-  const PartyScreen({super.key});
+  const PartyScreen({
+    super.key,
+    this.showBackButton = false,
+  });
+
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => PartyViewModel()..loadSessions(),
-      child: const _PartyView(),
+      child: _PartyView(showBackButton: showBackButton),
     );
   }
 }
 
 class _PartyView extends StatelessWidget {
-  const _PartyView();
+  const _PartyView({required this.showBackButton});
+
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4FAF6),
+      appBar: showBackButton
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

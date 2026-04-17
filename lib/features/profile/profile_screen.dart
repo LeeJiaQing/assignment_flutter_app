@@ -2,7 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/di/app_dependencies.dart';
 import '../../core/repositories/auth_repository.dart';
+import '../party/party_screen.dart';
 import 'viewmodels/profile_view_model.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_menu_item.dart';
@@ -106,14 +108,16 @@ class _ProfileViewState extends State<_ProfileView> {
                 onTap: () =>
                     Navigator.pushNamed(context, '/rewards'),
               ),
-              // My Sessions — member only
-              if (!_isAdmin)
-                ProfileMenuItem(
-                  icon: Icons.sports_soccer,
-                  label: 'My Party Sessions',
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/party/my'),
+              ProfileMenuItem(
+                icon: Icons.celebration_outlined,
+                label: 'Party',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PartyScreen(showBackButton: true),
+                  ),
                 ),
+              ),
             ],
           ),
 
