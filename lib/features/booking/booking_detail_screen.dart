@@ -1,6 +1,7 @@
 // lib/features/booking/booking_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/repositories/booking_repository.dart';
 import '../../core/repositories/facility_repository.dart';
@@ -40,19 +41,21 @@ class BookingDetailScreen extends StatelessWidget {
             backgroundColor: const Color(0xFFF4FAF6),
           ),
           body: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
             children: [
-              // ── QR Code Section ───────────────────────────────────────
-              if (booking.status == 'confirmed')
+              // ── QR Code Section ─────────────────────────────────────
+              if (booking.status == 'confirmed') ...[
+                const SizedBox(height: 16),
                 _QrSection(bookingId: booking.id),
-              if (booking.status == 'confirmed')
-                const SizedBox(height: 16),
+              ],
 
-              // ── Status Banner for non-active bookings ─────────────────
-              if (booking.status != 'confirmed')
-                _StatusBanner(status: booking.status),
-              if (booking.status != 'confirmed')
+              // ── Status Banner for non-active bookings ────────────────
+              if (booking.status != 'confirmed') ...[
                 const SizedBox(height: 16),
+                _StatusBanner(status: booking.status),
+              ],
+
+              const SizedBox(height: 16),
 
               // ── Facility Image ────────────────────────────────────────
               ClipRRect(
@@ -78,13 +81,15 @@ class BookingDetailScreen extends StatelessWidget {
                     icon: Icons.calendar_today_outlined,
                     label: 'Date',
                     value:
-                    '${booking.date.day.toString().padLeft(2, '0')}/${booking.date.month.toString().padLeft(2, '0')}/${booking.date.year}',
+                    '${booking.date.day.toString().padLeft(2, '0')}/'
+                        '${booking.date.month.toString().padLeft(2, '0')}/'
+                        '${booking.date.year}',
                   ),
                   _DetailRow(
                     icon: Icons.access_time_outlined,
                     label: 'Time',
                     value:
-                    '${_fmt(booking.startHour)} – ${_fmt(booking.endHour)}',
+                    '${_fmt(booking.startHour)} \u2013 ${_fmt(booking.endHour)}',
                   ),
                   _StatusRow(status: booking.status),
                 ],
@@ -96,18 +101,18 @@ class BookingDetailScreen extends StatelessWidget {
                 title: 'Payment Details',
                 icon: Icons.payment_outlined,
                 children: [
-                  _PaymentDetailsRows(bookingId: booking.id, booking: booking),
+                  _PaymentDetailsRows(
+                      bookingId: booking.id, booking: booking),
                 ],
               ),
               const SizedBox(height: 16),
 
-              // ── Cancel Button — only if allowed ───────────────────────
+              // ── Cancel Button ─────────────────────────────────────────
               if (BookingViewModel.canCancel(bookingWithFacility))
                 _CancelButton(
                   onCancel: () => _handleCancel(context, booking.id),
                 ),
 
-              // ── Cannot cancel info ─────────────────────────────────────
               if (booking.status == 'confirmed' &&
                   !BookingViewModel.canCancel(bookingWithFacility))
                 Container(
@@ -125,15 +130,13 @@ class BookingDetailScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           'This booking cannot be cancelled as the session time has already passed.',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.black87),
+                          style:
+                          TextStyle(fontSize: 12, color: Colors.black87),
                         ),
                       ),
                     ],
                   ),
                 ),
-
-              const SizedBox(height: 32),
             ],
           ),
         );
@@ -174,6 +177,161 @@ class BookingDetailScreen extends StatelessWidget {
   }
 }
 
+// ── QR Code Section ────────────────────────────────────────────────────────
+
+class _QrSection extends StatelessWidget {
+  const _QrSection({required this.bookingId});
+  final String bookingId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Show this QR code at the facility to check in',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1C3A2A),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Real QR code generated from the booking UUID.
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF1C894E).withOpacity(0.3),
+                width: 2,
+              ),
+            ),
+            child: QrImageView(
+              data: bookingId,
+              version: QrVersions.auto,
+              size: 180,
+              eyeStyle: const QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: Color(0xFF1C894E),
+              ),
+              dataModuleStyle: const QrDataModuleStyle(
+                dataModuleShape: QrDataModuleShape.square,
+                color: Color(0xFF1C3A2A),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Short booking ID reference below the QR.
+          Container(
+            padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD6F0E0),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'ID: ${bookingId.length > 8 ? bookingId.substring(0, 8).toUpperCase() : bookingId.toUpperCase()}',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF1C894E),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Status Banner ──────────────────────────────────────────────────────────
+
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner({required this.status});
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    Color bg;
+    Color fg;
+    IconData icon;
+    String message;
+
+    switch (status) {
+      case 'completed':
+        bg = const Color(0xFFD6F0E0);
+        fg = const Color(0xFF1C894E);
+        icon = Icons.check_circle_outline;
+        message = 'This session has been completed.';
+        break;
+      case 'cancelled':
+        bg = Colors.red.shade50;
+        fg = Colors.red.shade700;
+        icon = Icons.cancel_outlined;
+        message = 'This booking was cancelled.';
+        break;
+      case 'pending_sync':
+        bg = Colors.orange.shade50;
+        fg = Colors.orange.shade800;
+        icon = Icons.cloud_upload_outlined;
+        message = 'Booking saved offline — will sync when online.';
+        break;
+      case 'checked_in':
+        bg = Colors.blue.shade50;
+        fg = Colors.blue.shade700;
+        icon = Icons.how_to_reg_outlined;
+        message = 'You have checked in. Enjoy your session!';
+        break;
+      default:
+        bg = Colors.grey.shade100;
+        fg = Colors.grey.shade700;
+        icon = Icons.info_outline;
+        message = 'Booking status: $status';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: fg, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                  color: fg,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Payment Details ────────────────────────────────────────────────────────
+
 class _PaymentDetailsRows extends StatelessWidget {
   const _PaymentDetailsRows({
     required this.bookingId,
@@ -188,7 +346,8 @@ class _PaymentDetailsRows extends StatelessWidget {
     return FutureBuilder<Map<String, dynamic>?>(
       future: _loadPaymentRow(),
       builder: (context, snapshot) {
-        final methodCode = (snapshot.data?['method'] as String?) ?? '';
+        final methodCode =
+            (snapshot.data?['method'] as String?) ?? '';
         final labels = _paymentLabels(methodCode);
 
         return Column(
@@ -207,7 +366,9 @@ class _PaymentDetailsRows extends StatelessWidget {
               icon: Icons.calendar_month_outlined,
               label: 'Payment Date',
               value:
-                  '${booking.date.day.toString().padLeft(2, '0')}/${booking.date.month.toString().padLeft(2, '0')}/${booking.date.year}',
+              '${booking.date.day.toString().padLeft(2, '0')}/'
+                  '${booking.date.month.toString().padLeft(2, '0')}/'
+                  '${booking.date.year}',
             ),
           ],
         );
@@ -251,10 +412,7 @@ class _PaymentDetailsRows extends StatelessWidget {
           method: 'FPX / Online Banking',
         );
       default:
-        return const _PaymentLabels(
-          type: 'N/A',
-          method: 'N/A',
-        );
+        return const _PaymentLabels(type: 'N/A', method: 'N/A');
     }
   }
 }
@@ -263,213 +421,6 @@ class _PaymentLabels {
   final String type;
   final String method;
   const _PaymentLabels({required this.type, required this.method});
-}
-
-// ── Status Banner ──────────────────────────────────────────────────────────
-
-class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({required this.status});
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    Color bg;
-    Color fg;
-    IconData icon;
-    String message;
-
-    switch (status) {
-      case 'completed':
-        bg = const Color(0xFFD6F0E0);
-        fg = const Color(0xFF1C894E);
-        icon = Icons.check_circle_outline;
-        message = 'This session has been completed.';
-        break;
-      case 'cancelled':
-        bg = Colors.red.shade50;
-        fg = Colors.red.shade700;
-        icon = Icons.cancel_outlined;
-        message = 'This booking was cancelled.';
-        break;
-      case 'pending_sync':
-        bg = Colors.orange.shade50;
-        fg = Colors.orange.shade800;
-        icon = Icons.cloud_upload_outlined;
-        message = 'Booking saved offline — will sync when online.';
-        break;
-      default:
-        bg = Colors.grey.shade100;
-        fg = Colors.grey.shade700;
-        icon = Icons.info_outline;
-        message = 'Booking status: $status';
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: fg, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                  color: fg,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── QR Section ─────────────────────────────────────────────────────────────
-
-class _QrSection extends StatelessWidget {
-  const _QrSection({required this.bookingId});
-  final String bookingId;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Scan to check in',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1C3A2A),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: 160,
-            height: 160,
-            decoration: BoxDecoration(
-              border: Border.all(
-                  color: const Color(0xFF1C894E).withOpacity(0.3),
-                  width: 2),
-              borderRadius: BorderRadius.circular(12),
-              color: const Color(0xFFF4FAF6),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                ..._qrCorners(),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.qr_code_2,
-                        size: 64, color: Color(0xFF1C894E)),
-                    const SizedBox(height: 6),
-                    Text(
-                      bookingId.length > 8
-                          ? bookingId.substring(0, 8).toUpperCase()
-                          : bookingId.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Show this QR code at the facility entrance',
-            style:
-            TextStyle(fontSize: 12, color: Colors.grey.shade500),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _qrCorners() {
-    const size = 20.0;
-    const thickness = 3.0;
-    const color = Color(0xFF1C894E);
-
-    Widget corner({
-      required AlignmentGeometry alignment,
-      required BorderRadius radius,
-      required Border border,
-    }) =>
-        Align(
-          alignment: alignment,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Container(
-              width: size,
-              height: size,
-              decoration:
-              BoxDecoration(border: border, borderRadius: radius),
-            ),
-          ),
-        );
-
-    return [
-      corner(
-        alignment: Alignment.topLeft,
-        radius:
-        const BorderRadius.only(topLeft: Radius.circular(4)),
-        border: const Border(
-          top: BorderSide(color: color, width: thickness),
-          left: BorderSide(color: color, width: thickness),
-        ),
-      ),
-      corner(
-        alignment: Alignment.topRight,
-        radius:
-        const BorderRadius.only(topRight: Radius.circular(4)),
-        border: const Border(
-          top: BorderSide(color: color, width: thickness),
-          right: BorderSide(color: color, width: thickness),
-        ),
-      ),
-      corner(
-        alignment: Alignment.bottomLeft,
-        radius: const BorderRadius.only(
-            bottomLeft: Radius.circular(4)),
-        border: const Border(
-          bottom: BorderSide(color: color, width: thickness),
-          left: BorderSide(color: color, width: thickness),
-        ),
-      ),
-      corner(
-        alignment: Alignment.bottomRight,
-        radius: const BorderRadius.only(
-            bottomRight: Radius.circular(4)),
-        border: const Border(
-          bottom: BorderSide(color: color, width: thickness),
-          right: BorderSide(color: color, width: thickness),
-        ),
-      ),
-    ];
-  }
 }
 
 // ── Section Card ───────────────────────────────────────────────────────────
@@ -574,13 +525,15 @@ class _StatusRow extends StatelessWidget {
         return Colors.orange;
       case 'completed':
         return Colors.purple;
+      case 'checked_in':
+        return Colors.blue;
       default:
         return Colors.red;
     }
   }
 
   String get _label =>
-      status[0].toUpperCase() + status.substring(1);
+      status[0].toUpperCase() + status.substring(1).replaceAll('_', ' ');
 
   @override
   Widget build(BuildContext context) {
@@ -623,19 +576,22 @@ class _CancelButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        icon: const Icon(Icons.cancel_outlined),
-        label: const Text('Cancel Booking'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.red,
-          side: const BorderSide(color: Colors.red),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(vertical: 14),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          icon: const Icon(Icons.cancel_outlined),
+          label: const Text('Cancel Booking'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.red,
+            side: const BorderSide(color: Colors.red),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+          onPressed: onCancel,
         ),
-        onPressed: onCancel,
       ),
     );
   }

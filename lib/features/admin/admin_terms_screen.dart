@@ -1,13 +1,9 @@
 // lib/features/admin/admin_terms_screen.dart
 //
-// Admin-only screen to view and edit the Terms & Conditions.
-//
-// Storage strategy (no extra table needed):
-//   • Reads from / writes to the `announcements` table using a special
-//     title sentinel '__terms_and_conditions__'. This row is never shown
-//     in the normal announcements list (filtered by title).
-//   • Falls back to the hard-coded default if no row exists yet.
-//   • On save, upserts that row so repeated saves don't create duplicates.
+// Admin screen to view AND edit the Terms & Conditions.
+// Storage: uses a sentinel row in the `announcements` table with
+// title == '__terms_and_conditions__'. The `updated_at` column is
+// stored in the `data` JSON field as a workaround (no schema change needed).
 import 'package:flutter/material.dart';
 
 import '../../core/supabase/supabase_config.dart';
@@ -20,7 +16,6 @@ class AdminTermsScreen extends StatefulWidget {
 }
 
 class _AdminTermsScreenState extends State<AdminTermsScreen> {
-  // Sentinel title used to identify the T&C row in announcements.
   static const _sentinel = '__terms_and_conditions__';
 
   static const _defaultContent =
@@ -45,7 +40,8 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
       'acceptance of the new terms.';
 
   late final TextEditingController _controller;
-  String? _existingRowId; // id of the announcements row if it exists
+  String? _existingRowId;
+  DateTime? _lastUpdated;
   bool _loading = true;
   bool _saving = false;
   bool _editing = false;
@@ -64,8 +60,6 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
     super.dispose();
   }
 
-  // ── Load ───────────────────────────────────────────────────────────────────
-
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -74,25 +68,30 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
     try {
       final response = await supabase
           .from('announcements')
-          .select('id, body')
+          .select('id, body, updated_at, created_at')
           .eq('title', _sentinel)
           .maybeSingle();
 
       if (response != null) {
         _existingRowId = response['id'] as String?;
         _controller.text = (response['body'] as String?) ?? _defaultContent;
+        // Use updated_at if available, else created_at
+        final dateStr = (response['updated_at'] as String?) ??
+            (response['created_at'] as String?);
+        if (dateStr != null) {
+          _lastUpdated = DateTime.tryParse(dateStr);
+        }
       } else {
         _existingRowId = null;
         _controller.text = _defaultContent;
+        _lastUpdated = null;
       }
     } catch (_) {
-      // Any DB error → fall back to default.
       _controller.text = _defaultContent;
+      _lastUpdated = null;
     }
     setState(() => _loading = false);
   }
-
-  // ── Save ───────────────────────────────────────────────────────────────────
 
   Future<void> _save() async {
     setState(() {
@@ -101,29 +100,31 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
     });
     try {
       final adminId = supabase.auth.currentUser?.id;
+      final now = DateTime.now();
+      final nowIso = now.toUtc().toIso8601String();
 
       if (_existingRowId != null) {
-        // Update existing row.
-        await supabase
-            .from('announcements')
-            .update({'body': _controller.text})
-            .eq('id', _existingRowId!);
+        await supabase.from('announcements').update({
+          'body': _controller.text,
+          'updated_at': nowIso,
+        }).eq('id', _existingRowId!);
       } else {
-        // Insert new sentinel row.
         final result = await supabase
             .from('announcements')
             .insert({
           'title': _sentinel,
           'body': _controller.text,
-          'target_type': 'none', // never shown to users
+          'target_type': 'none',
           'created_by': adminId,
-          'notification_sent': true, // prevent notification triggers
+          'notification_sent': true,
+          'updated_at': nowIso,
         })
             .select('id')
             .single();
         _existingRowId = result['id'] as String?;
       }
 
+      _lastUpdated = now;
       if (!mounted) return;
       setState(() {
         _saving = false;
@@ -150,7 +151,13 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
     setState(() => _editing = false);
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  String _formatDate(DateTime dt) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -177,12 +184,10 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: Color(0xFF1C894E)))
-                      : const Text(
-                    'Save',
-                    style: TextStyle(
-                        color: Color(0xFF1C894E),
-                        fontWeight: FontWeight.bold),
-                  ),
+                      : const Text('Save',
+                      style: TextStyle(
+                          color: Color(0xFF1C894E),
+                          fontWeight: FontWeight.bold)),
                 ),
               ],
             )
@@ -212,7 +217,7 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
                   child: Text(
                     _editing
                         ? 'Edit mode — changes are visible to all users after saving.'
-                        : 'Tap the ✏️ icon to edit the Terms & Conditions.',
+                        : 'Tap the \u270f\ufe0f icon to edit the Terms & Conditions.',
                     style: const TextStyle(
                         color: Color(0xFF1C894E), fontSize: 12),
                   ),
@@ -254,9 +259,8 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
                   border: OutlineInputBorder(
                       borderRadius:
                       BorderRadius.circular(12)),
-                  hintText: 'Enter terms content…',
-                  contentPadding:
-                  const EdgeInsets.all(14),
+                  hintText: 'Enter terms content\u2026',
+                  contentPadding: const EdgeInsets.all(14),
                 ),
                 style: const TextStyle(
                     fontSize: 13,
@@ -264,7 +268,12 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
                     height: 1.6),
               ),
             )
-                : _ReadOnlyView(content: _controller.text),
+                : _ReadOnlyView(
+              content: _controller.text,
+              lastUpdated: _lastUpdated != null
+                  ? _formatDate(_lastUpdated!)
+                  : null,
+            ),
           ),
         ],
       ),
@@ -275,12 +284,12 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
 // ── Read-only formatted view ───────────────────────────────────────────────
 
 class _ReadOnlyView extends StatelessWidget {
-  const _ReadOnlyView({required this.content});
+  const _ReadOnlyView({required this.content, this.lastUpdated});
   final String content;
+  final String? lastUpdated;
 
   @override
   Widget build(BuildContext context) {
-    // Split on numbered headers like "1. Title"
     final sections = <_Section>[];
     final lines = content.split('\n');
     String? currentTitle;
@@ -290,8 +299,8 @@ class _ReadOnlyView extends StatelessWidget {
       final trimmed = line.trim();
       if (RegExp(r'^\d+\.\s+.+').hasMatch(trimmed)) {
         if (currentTitle != null) {
-          sections.add(
-              _Section(title: currentTitle, body: buffer.toString().trim()));
+          sections.add(_Section(
+              title: currentTitle, body: buffer.toString().trim()));
           buffer.clear();
         }
         currentTitle = trimmed;
@@ -311,6 +320,13 @@ class _ReadOnlyView extends StatelessWidget {
           Text(content,
               style: const TextStyle(
                   fontSize: 13, color: Colors.black87, height: 1.6)),
+          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              'Last updated: ${lastUpdated ?? 'N/A'}',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
         ],
       );
     }
@@ -320,11 +336,14 @@ class _ReadOnlyView extends StatelessWidget {
       itemCount: sections.length + 1,
       itemBuilder: (_, i) {
         if (i == sections.length) {
-          return const Padding(
-            padding: EdgeInsets.only(top: 24),
+          return Padding(
+            padding: const EdgeInsets.only(top: 24),
             child: Center(
-              child: Text('Last updated: March 2026',
-                  style: TextStyle(color: Colors.grey, fontSize: 12)),
+              child: Text(
+                'Last updated: ${lastUpdated ?? 'N/A'}',
+                style:
+                const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
             ),
           );
         }
@@ -342,9 +361,7 @@ class _ReadOnlyView extends StatelessWidget {
             ),
             Text(s.body,
                 style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.black87,
-                    height: 1.6)),
+                    fontSize: 13, color: Colors.black87, height: 1.6)),
           ],
         );
       },

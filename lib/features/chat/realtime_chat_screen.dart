@@ -85,9 +85,12 @@ class _ChatView extends StatelessWidget {
           ),
           // Hide input bar for admins
           if (!readOnly)
-            ChatInputBar(
-              onSend: (text) =>
-                  context.read<ChatViewModel>().sendMessage(text),
+            SafeArea(
+              top: false,
+              child: ChatInputBar(
+                onSend: (text) =>
+                    context.read<ChatViewModel>().sendMessage(text),
+              ),
             ),
         ],
       ),

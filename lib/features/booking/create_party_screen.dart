@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/repositories/booking_repository.dart';
 import '../../core/repositories/facility_repository.dart';
 import '../../core/services/booking_service.dart';
+import '../../core/services/navigation_service.dart';
 import '../../core/supabase/supabase_config.dart';
 import '../../models/booking_model.dart';
 import '../home/viewmodels/navigation_view_model.dart';
@@ -311,23 +312,24 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 24, vertical: 12),
               ),
-              onPressed: () {
-                // Pop back to the main navigation root (which has the bottom nav bar).
-                // Then switch the bottom nav to the Facility tab (index 1).
-                Navigator.of(context).popUntil((route) => route.isFirst);
-                // The NavigationViewModel is provided at the root — we access it
-                // through the root navigator context after popping.
-                // We use a post-frame callback to ensure the pop completes first.
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  final ctx = Navigator.of(context).context;
+              onPressed: () async {
+                // Pop every route until we're back at MainNavigation (the first route).
+                NavigationService.instance.popToRoot();
+
+                // Give the navigator a frame to settle, then switch to Facility tab.
+                await Future.delayed(const Duration(milliseconds: 100));
+
+                final navCtx =
+                    NavigationService.instance.navigator?.context;
+                if (navCtx != null && navCtx.mounted) {
                   try {
                     // ignore: use_build_context_synchronously
-                    Provider.of<NavigationViewModel>(ctx, listen: false)
-                        .setTab(1); // 1 = Facility for both admin and member
+                    Provider.of<NavigationViewModel>(navCtx, listen: false)
+                        .setTab(1); // index 1 = Facility for both roles
                   } catch (_) {
-                    // If provider is not available, already on home — that's fine.
+                    // NavigationViewModel not found — already on home, that's fine.
                   }
-                });
+                }
               },
               child: const Text('Book a Court'),
             ),

@@ -2,9 +2,8 @@
 //
 // Strategy:
 //  • Optimistic insert: sender sees message instantly.
-//  • After insert: reload from server to get real ID + senderName.
-//  • 5-second poll keeps all participants in sync without needing
-//    Supabase Realtime to be enabled on the messages table.
+//  • After every send: reload from server to confirm with real row + senderName.
+//  • 5-second poll keeps all participants in sync (no Realtime dependency).
 //  • Real-time subscription attempted as bonus; ignored if unavailable.
 import 'dart:async';
 
@@ -30,14 +29,19 @@ class ChatMessage {
 
   bool get isMe => senderId == supabase.auth.currentUser?.id;
 
-  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
-    id: json['id'] as String,
-    senderId: json['sender_id'] as String,
-    senderName:
-    (json['profiles'] as Map?)?['full_name'] as String? ?? 'User',
-    content: json['content'] as String,
-    createdAt: DateTime.parse(json['created_at'] as String),
-  );
+  factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    // The join is: messages join profiles on sender_id = profiles.id
+    // Supabase returns the joined row as json['profiles'] => {'full_name': '...'}
+    final profileName =
+    (json['profiles'] as Map<String, dynamic>?)?['full_name'] as String?;
+    return ChatMessage(
+      id: json['id'] as String,
+      senderId: json['sender_id'] as String,
+      senderName: profileName ?? 'User',
+      content: json['content'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
 }
 
 class ChatViewModel extends ChangeNotifier {
@@ -79,13 +83,14 @@ class ChatViewModel extends ChangeNotifier {
     _startPolling();
   }
 
-  // ── Fetch (merge, no flicker) ──────────────────────────────────────────────
+  // ── Fetch — always replaces list from server truth ─────────────────────────
 
   Future<void> _fetchMessages() async {
     try {
+      // Join profiles on sender_id so we always get the real display name.
       final response = await supabase
           .from('messages')
-          .select('*, profiles(full_name)')
+          .select('id, sender_id, content, created_at, profiles(full_name)')
           .eq('channel_id', channelId)
           .order('created_at', ascending: true);
 
@@ -94,7 +99,7 @@ class ChatViewModel extends ChangeNotifier {
           ChatMessage.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      // Rebuild list from server truth, removing optimistic placeholders.
+      // Rebuild from server, dropping any optimistic placeholders.
       _messages
         ..removeWhere((m) => m.id.startsWith('optimistic_'))
         ..clear();
@@ -104,7 +109,7 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
-  // ── Real-time (best-effort) ────────────────────────────────────────────────
+  // ── Real-time subscription (best-effort) ───────────────────────────────────
 
   void _subscribeRealtime() {
     _realtimeChannel?.unsubscribe();
@@ -131,11 +136,11 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
-  // ── Poll every 5 s ─────────────────────────────────────────────────────────
+  // ── Poll every 4 s — reliable fallback for all participants ───────────────
 
   void _startPolling() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
       await _fetchMessages();
       notifyListeners();
     });
@@ -147,20 +152,20 @@ class ChatViewModel extends ChangeNotifier {
     final trimmed = content.trim();
     if (trimmed.isEmpty) return;
 
-    final userId = supabase.auth.currentUser?.id;
-    if (userId == null) {
+    final user = supabase.auth.currentUser;
+    if (user == null) {
       _errorMessage = 'You must be signed in to send messages.';
       notifyListeners();
       return;
     }
 
-    // Optimistic: show message right away.
+    // Optimistic insert so the sender sees the message immediately.
     final optimisticId =
         'optimistic_${DateTime.now().millisecondsSinceEpoch}';
     _messages.add(ChatMessage(
       id: optimisticId,
-      senderId: userId,
-      senderName: 'You',
+      senderId: user.id,
+      senderName: user.userMetadata?['full_name'] as String? ?? 'You',
       content: trimmed,
       createdAt: DateTime.now(),
     ));
@@ -169,10 +174,10 @@ class ChatViewModel extends ChangeNotifier {
     try {
       await supabase.from('messages').insert({
         'channel_id': channelId,
-        'sender_id': userId,
+        'sender_id': user.id,
         'content': trimmed,
       });
-      // Replace optimistic with real server data.
+      // Replace optimistic row with the real server row (has proper ID + name).
       await _fetchMessages();
       notifyListeners();
     } catch (e) {

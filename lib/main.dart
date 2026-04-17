@@ -1,4 +1,5 @@
 // lib/main.dart
+import 'package:assignment/core/services/navigation_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +10,7 @@ import 'core/repositories/facility_repository.dart';
 import 'core/repositories/offline_facility_repository.dart';
 import 'core/repositories/offline_booking_repository.dart';
 import 'core/services/connectivity_service.dart';
+import 'core/services/navigation_service.dart';
 import 'core/services/sync_service.dart';
 import 'core/supabase/supabase_config.dart';
 import 'features/admin/admin_announcement_screen.dart';
@@ -61,7 +63,8 @@ class MainApp extends StatelessWidget {
     return Provider.value(
       value: dependencies,
       child: MaterialApp(
-      debugShowCheckedModeBanner: false,
+        navigatorKey: NavigationService.instance.navigatorKey,
+        debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF1C894E),

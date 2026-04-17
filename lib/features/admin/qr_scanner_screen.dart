@@ -62,25 +62,27 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
     try {
       final booking = await _qrService.validateBookingQr(code);
-      if (!mounted) return;
-
-      if (booking == null) {
-        setState(() {
-          _lastResult = _ScanResult.invalid(code);
-          _isProcessing = false;
-        });
-        _showResultSheet(context, _lastResult!);
-      } else {
-        setState(() {
-          _lastResult = _ScanResult.valid(booking, code);
-          _isProcessing = false;
-        });
-        _showResultSheet(context, _lastResult!);
+      if (!mounted) {
+        _resumeScanning();
+        return;
       }
-    } catch (e) {
-      if (!mounted) return;
+
+      final result = booking != null
+          ? _ScanResult.valid(booking, code)
+          : _ScanResult.invalid(code);
+
       setState(() {
-        _lastResult = _ScanResult.error(e.toString());
+        _lastResult = result;
+        _isProcessing = false;
+      });
+      _showResultSheet(context, result);
+    } catch (e) {
+      if (!mounted) {
+        _resumeScanning();
+        return;
+      }
+      setState(() {
+        _lastResult = _ScanResult.invalid(code); // treat any error as invalid
         _isProcessing = false;
       });
       _showResultSheet(context, _lastResult!);
@@ -99,6 +101,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -110,7 +113,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           _resumeScanning();
         },
       ),
-    );
+    ).whenComplete(_resumeScanning); // also resumes if user swipes sheet away
   }
 
   @override
@@ -263,7 +266,7 @@ class _ScanOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColorFiltered(
       colorFilter: ColorFilter.mode(
-        Colors.black.withValues(alpha: 0.5),
+        Colors.black.withOpacity(0.5),
         BlendMode.srcOut,
       ),
       child: Stack(
@@ -355,7 +358,7 @@ class _ResultSheetState extends State<_ResultSheet> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: _statusColor.withValues(alpha: 0.12),
+              color: _statusColor.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(_statusIcon, color: _statusColor, size: 36),
