@@ -87,7 +87,7 @@ class MainApp extends StatelessWidget {
         '/profile/edit': (_) => ChangeNotifierProvider(
           create: (_) =>
           ProfileViewModel(
-            authRepository: context.read<AppDependencies>().authRepository,
+            authRepository: dependencies.authRepository,
           )..loadProfile(),
           child: const EditProfileScreen(),
         ),
