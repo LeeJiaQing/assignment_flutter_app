@@ -12,6 +12,7 @@ import 'core/services/connectivity_service.dart';
 import 'core/services/sync_service.dart';
 import 'core/supabase/supabase_config.dart';
 import 'features/admin/admin_announcement_screen.dart';
+import 'features/admin/admin_terms_screen.dart';
 import 'features/admin/create_facility_screen.dart';
 import 'features/admin/edit_facility_screen.dart';
 import 'features/admin/user_list_screen.dart';
@@ -19,9 +20,11 @@ import 'features/auth/auth_gate.dart';
 import 'features/auth/login_screen.dart';
 import 'features/booking/booking_screen.dart';
 import 'features/booking/create_party_screen.dart';
+import 'features/facility/facility_screen.dart';
 import 'features/feedback/create_feedback_screen.dart';
 import 'features/home/main_navigation.dart';
 import 'features/notification/notification_screen.dart';
+import 'features/party/myparty_screen_page.dart';
 import 'features/profile/edit_profile_screen.dart';
 import 'features/profile/terms_conditions_screen.dart';
 import 'features/profile/viewmodels/profile_view_model.dart';
@@ -79,6 +82,7 @@ class MainApp extends StatelessWidget {
       routes: {
         '/login': (_) => const LoginScreen(),
         '/home': (_) => const MainNavigation(),
+        '/facility': (_) => const FacilityScreen(),
         '/bookings': (_) => const BookingScreen(),
         '/rewards': (_) => const RewardPointsScreen(),
         '/feedback': (_) => const CreateFeedbackScreen(),
@@ -92,11 +96,13 @@ class MainApp extends StatelessWidget {
           child: const EditProfileScreen(),
         ),
         '/party/create': (_) => const CreatePartyScreen(),
+        '/party/my': (_) => const MyPartyScreenPage(),
         '/admin/facility/create': (_) =>
         const CreateFacilityScreen(),
         '/admin/announcement': (_) =>
         const AdminAnnouncementScreen(),
         '/admin/users': (_) => const UserListScreen(),
+        '/admin/terms/edit': (_) => const AdminTermsScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {

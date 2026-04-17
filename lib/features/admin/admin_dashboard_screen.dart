@@ -377,6 +377,7 @@ class _AdminAnnouncementListScreenState
       final res = await supabase
           .from('announcements')
           .select()
+          .neq('title', '__terms_and_conditions__') // hide T&C sentinel
           .order('created_at', ascending: false);
       setState(() {
         _items = List<Map<String, dynamic>>.from(res as List);
