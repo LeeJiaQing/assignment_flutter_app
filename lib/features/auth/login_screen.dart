@@ -296,6 +296,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
   final _codeController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _newPasswordFocusNode = FocusNode();
 
   bool _codeSent = false;
   bool _codeVerified = false;
@@ -305,12 +306,19 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
   int _secondsLeft = 0;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
+  bool _hasInteractedWithNewPassword = false;
   Timer? _timer;
+
+  bool get _showNewPasswordRequirements =>
+      _newPasswordFocusNode.hasFocus || _hasInteractedWithNewPassword;
 
   @override
   void initState() {
     super.initState();
     _emailController = TextEditingController(text: widget.initialEmail);
+    _newPasswordFocusNode.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -320,6 +328,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
     _codeController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
+    _newPasswordFocusNode.dispose();
     super.dispose();
   }
 
@@ -397,8 +406,16 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
               ],
               TextField(
                 controller: _newPasswordController,
+                focusNode: _newPasswordFocusNode,
                 obscureText: _obscureNewPassword,
                 enabled: _codeVerified,
+                onChanged: (_) {
+                  if (!_hasInteractedWithNewPassword) {
+                    setState(() => _hasInteractedWithNewPassword = true);
+                  } else {
+                    setState(() {});
+                  }
+                },
                 decoration: InputDecoration(
                   labelText: 'New password',
                   border: const OutlineInputBorder(),
@@ -416,6 +433,18 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
                   ),
                 ),
               ),
+              if (_codeVerified && _showNewPasswordRequirements) ...[
+                const SizedBox(height: 8),
+                ..._passwordRequirementMessages(_newPasswordController.text).map(
+                  (rule) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '• $rule',
+                      style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               TextField(
                 controller: _confirmPasswordController,
@@ -625,15 +654,21 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
   }
 
   String? _validatePassword(String? value) {
-    final password = value ?? '';
-    if (password.isEmpty) return 'Password is required';
-    if (password.length < 8) return 'Password must be at least 8 characters';
+    final requirements = _passwordRequirementMessages(value ?? '');
+    if (requirements.isNotEmpty) return requirements.first;
+    return null;
+  }
+
+  List<String> _passwordRequirementMessages(String password) {
+    final missing = <String>[];
+    if (password.isEmpty) missing.add('Password is required');
+    if (password.length < 8) missing.add('At least 8 characters');
     if (!RegExp(r'[A-Z]').hasMatch(password)) {
-      return 'Password must include at least 1 uppercase letter';
+      missing.add('At least 1 uppercase letter');
     }
     if (!RegExp(r'[!@#$%^&*(),.?":{}|<>\[\]\\/_\-+=~`]').hasMatch(password)) {
-      return 'Password must include at least 1 special character';
+      missing.add('At least 1 special character');
     }
-    return null;
+    return missing;
   }
 }
