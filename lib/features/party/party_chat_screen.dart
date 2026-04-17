@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/repositories/auth_repository.dart';
 import '../../core/supabase/supabase_config.dart';
 import 'viewmodels/party_view_model.dart';
 import '../chat/viewmodels/chat_view_model.dart';
@@ -43,11 +44,24 @@ class _PartyDetailChatView extends StatefulWidget {
 class _PartyDetailChatViewState extends State<_PartyDetailChatView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  bool _isAdmin = false;
+  bool _roleChecked = false; // guard: hide join until role is known
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _checkRole();
+  }
+
+  Future<void> _checkRole() async {
+    final role = await AuthRepository().getCurrentUserRole();
+    if (mounted) {
+      setState(() {
+        _isAdmin = role == UserRole.admin;
+        _roleChecked = true;
+      });
+    }
   }
 
   @override
@@ -102,10 +116,16 @@ class _PartyDetailChatViewState extends State<_PartyDetailChatView>
           _DetailsTab(
             session: widget.session,
             isHost: _isHost,
+            isAdmin: _isAdmin,
+            roleChecked: _roleChecked,
             dateLabel: _dateLabel,
             timeLabel: _timeLabel,
           ),
-          _ChatTab(channelId: 'party_${widget.session.id}'),
+          _ChatTab(
+            channelId: 'party_${widget.session.id}',
+            isAdmin: _isAdmin,
+            roleChecked: _roleChecked,
+          ),
         ],
       ),
     );
@@ -118,12 +138,16 @@ class _DetailsTab extends StatelessWidget {
   const _DetailsTab({
     required this.session,
     required this.isHost,
+    required this.isAdmin,
+    required this.roleChecked,
     required this.dateLabel,
     required this.timeLabel,
   });
 
   final PartySession session;
   final bool isHost;
+  final bool isAdmin;
+  final bool roleChecked;
   final String dateLabel;
   final String timeLabel;
 
@@ -178,7 +202,29 @@ class _DetailsTab extends StatelessWidget {
                           Icon(Icons.star,
                               color: Colors.white, size: 13),
                           SizedBox(width: 4),
-                          Text('You\'re hosting',
+                          Text("You're hosting",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  if (isAdmin && !isHost)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.admin_panel_settings,
+                              color: Colors.white, size: 13),
+                          SizedBox(width: 4),
+                          Text('Admin view',
                               style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,
@@ -259,8 +305,8 @@ class _DetailsTab extends StatelessWidget {
                           color: Colors.red, size: 16),
                       SizedBox(width: 8),
                       Text('This session is full.',
-                          style: TextStyle(
-                              color: Colors.red, fontSize: 12)),
+                          style:
+                          TextStyle(color: Colors.red, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -332,46 +378,84 @@ class _DetailsTab extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // ── Join button (non-hosts only, if not full) ──────────────────
-        if (!isHost && !session.isFull)
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.group_add_outlined),
-              label: const Text('Join This Session'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6DCC98),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+        // ── Action buttons ─────────────────────────────────────────────
+        // Show a spinner until role check completes. This prevents the
+        // join button from briefly appearing for admins (race condition fix).
+        if (!roleChecked)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
-              onPressed: () => _handleJoin(context),
             ),
-          ),
-
-        if (!isHost && session.isFull)
+          )
+        else if (!isAdmin) ...[
+          // ── Member: join / full indicator ────────────────────────────
+          if (!isHost && !session.isFull)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.group_add_outlined),
+                label: const Text('Join This Session'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6DCC98),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () => _handleJoin(context),
+              ),
+            ),
+          if (!isHost && session.isFull)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.block, color: Colors.grey, size: 18),
+                  SizedBox(width: 8),
+                  Text('Session is full',
+                      style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
+        ] else ...[
+          // ── Admin: read-only info banner ─────────────────────────────
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: const Color(0xFFD6F0E0),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.block, color: Colors.grey, size: 18),
+                Icon(Icons.admin_panel_settings,
+                    color: Color(0xFF1C894E), size: 18),
                 SizedBox(width: 8),
-                Text('Session is full',
-                    style: TextStyle(color: Colors.grey)),
+                Expanded(
+                  child: Text(
+                    'You are viewing this session as an admin.',
+                    style: TextStyle(
+                        color: Color(0xFF1C894E), fontSize: 13),
+                  ),
+                ),
               ],
             ),
           ),
+          const SizedBox(height: 8),
+        ],
 
-        const SizedBox(height: 8),
-
-        // Chat shortcut button
+        // Chat shortcut button (always visible)
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
@@ -385,7 +469,6 @@ class _DetailsTab extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
             onPressed: () {
-              // Switch to chat tab
               final tabController = context
                   .findAncestorStateOfType<_PartyDetailChatViewState>()
                   ?._tabController;
@@ -406,7 +489,7 @@ class _DetailsTab extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(success
-            ? 'You\'ve joined the session!'
+            ? "You've joined the session!"
             : 'Failed to join. ${vm.errorMessage ?? ''}'),
         backgroundColor:
         success ? const Color(0xFF1C894E) : Colors.red.shade700,
@@ -420,8 +503,14 @@ class _DetailsTab extends StatelessWidget {
 // ── Chat Tab ───────────────────────────────────────────────────────────────
 
 class _ChatTab extends StatelessWidget {
-  const _ChatTab({required this.channelId});
+  const _ChatTab({
+    required this.channelId,
+    required this.isAdmin,
+    required this.roleChecked,
+  });
   final String channelId;
+  final bool isAdmin;
+  final bool roleChecked;
 
   @override
   Widget build(BuildContext context) {
@@ -429,6 +518,28 @@ class _ChatTab extends StatelessWidget {
 
     return Column(
       children: [
+        // Show read-only banner once we know the user is admin.
+        if (roleChecked && isAdmin)
+          Container(
+            color: const Color(0xFFD6F0E0),
+            width: double.infinity,
+            padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: const Row(
+              children: [
+                Icon(Icons.visibility_outlined,
+                    color: Color(0xFF1C894E), size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'Admin view — read only',
+                  style: TextStyle(
+                      color: Color(0xFF1C894E),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
         Expanded(
           child: vm.isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -438,8 +549,7 @@ class _ChatTab extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.chat_bubble_outline,
-                    size: 48,
-                    color: Colors.grey.shade300),
+                    size: 48, color: Colors.grey.shade300),
                 const SizedBox(height: 12),
                 const Text(
                   'No messages yet.\nSay hello to your session mates!',
@@ -451,10 +561,13 @@ class _ChatTab extends StatelessWidget {
           )
               : _MessageList(messages: vm.messages),
         ),
-        ChatInputBar(
-          onSend: (text) =>
-              context.read<ChatViewModel>().sendMessage(text),
-        ),
+        // Hide input bar for admins. While role is still loading,
+        // also hide to prevent flicker.
+        if (roleChecked && !isAdmin)
+          ChatInputBar(
+            onSend: (text) =>
+                context.read<ChatViewModel>().sendMessage(text),
+          ),
       ],
     );
   }

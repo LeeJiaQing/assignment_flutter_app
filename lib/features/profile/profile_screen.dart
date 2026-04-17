@@ -15,16 +15,33 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) =>
-          ProfileViewModel(
-            authRepository: context.read<AppDependencies>().authRepository,
-          )..loadProfile(),
+      ProfileViewModel(authRepository: AuthRepository())
+        ..loadProfile(),
       child: const _ProfileView(),
     );
   }
 }
 
-class _ProfileView extends StatelessWidget {
+class _ProfileView extends StatefulWidget {
   const _ProfileView();
+
+  @override
+  State<_ProfileView> createState() => _ProfileViewState();
+}
+
+class _ProfileViewState extends State<_ProfileView> {
+  bool _isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRole();
+  }
+
+  Future<void> _checkRole() async {
+    final role = await AuthRepository().getCurrentUserRole();
+    if (mounted) setState(() => _isAdmin = role == UserRole.admin);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +84,8 @@ class _ProfileView extends StatelessWidget {
         children: [
           ProfileHeader(profile: vm.profile!),
           const SizedBox(height: 20),
+
+          // ── Account section ─────────────────────────────────────────
           _MenuSection(
             title: 'Account',
             children: [
@@ -100,6 +119,8 @@ class _ProfileView extends StatelessWidget {
               ),
             ],
           ),
+
+          // ── Support section ─────────────────────────────────────────
           _MenuSection(
             title: 'Support',
             children: [
@@ -112,11 +133,22 @@ class _ProfileView extends StatelessWidget {
               ProfileMenuItem(
                 icon: Icons.description_outlined,
                 label: 'Terms & Conditions',
-                onTap: () =>
-                    Navigator.pushNamed(context, '/terms'),
+                // Admin navigates to the editable version;
+                // members see the read-only version.
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  _isAdmin
+                      ? '/admin/terms/edit'
+                      : '/terms',
+                ),
+                trailing: _isAdmin
+                    ? const Icon(Icons.edit_outlined,
+                    color: Color(0xFF1C894E), size: 18)
+                    : null,
               ),
             ],
           ),
+
           _MenuSection(
             children: [
               ProfileMenuItem(
@@ -157,7 +189,6 @@ class _ProfileView extends StatelessWidget {
     if (confirmed == true) {
       await vm.signOut();
       if (!context.mounted) return;
-      // Redirect to login after sign out
       Navigator.pushNamedAndRemoveUntil(
           context, '/login', (route) => false);
     }

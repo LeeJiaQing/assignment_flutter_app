@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/di/app_dependencies.dart';
 import '../admin/admin_dashboard_screen.dart';
+import '../admin/admin_party_screen.dart';
 import '../admin/qr_scanner_screen.dart';
 import '../chat/realtime_chat_screen.dart';
 import '../facility/facility_screen.dart';
@@ -57,8 +58,8 @@ class _MainNavigationView extends StatelessWidget {
         ? const [
       AdminDashboardScreen(),
       FacilityScreen(),
-      PartyScreen(),
-      RealtimeChatScreen(),
+      AdminPartyScreen(),
+      RealtimeChatScreen(readOnly: true,),
       QrScannerScreen(),
       ProfileScreen(),
     ]
