@@ -93,7 +93,14 @@ class _UserTile extends StatelessWidget {
   const _UserTile({required this.user});
   final UserProfile user;
 
-  String _channelIdForUser(UserProfile user) => 'admin_user_${user.id}';
+  String _channelIdForUser(UserProfile user) {
+    final me = supabase.auth.currentUser?.id;
+    if (me == null || me == user.id) {
+      return 'dm_${user.id}';
+    }
+    final pair = [me, user.id]..sort();
+    return 'dm_${pair[0]}_${pair[1]}';
+  }
 
   @override
   Widget build(BuildContext context) {

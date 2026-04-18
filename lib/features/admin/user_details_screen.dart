@@ -1,6 +1,7 @@
 // lib/features/admin/user_details_screen.dart
 import 'package:flutter/material.dart';
 
+import '../../core/supabase/supabase_config.dart';
 import '../chat/realtime_chat_screen.dart';
 import '../../models/user_model.dart';
 
@@ -8,6 +9,15 @@ class UserDetailsScreen extends StatelessWidget {
   const UserDetailsScreen({super.key, required this.user});
 
   final UserProfile user;
+
+  String _channelIdForUser(UserProfile user) {
+    final me = supabase.auth.currentUser?.id;
+    if (me == null || me == user.id) {
+      return 'dm_${user.id}';
+    }
+    final pair = [me, user.id]..sort();
+    return 'dm_${pair[0]}_${pair[1]}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +37,7 @@ class UserDetailsScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (_) => RealtimeChatScreen(
-                    channelId: 'admin_user_${user.id}',
+                    channelId: _channelIdForUser(user),
                     chatTitle: 'Chat: ${user.fullName}',
                   ),
                 ),
