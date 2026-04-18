@@ -1,6 +1,7 @@
 // lib/features/admin/user_details_screen.dart
 import 'package:flutter/material.dart';
 
+import '../chat/realtime_chat_screen.dart';
 import '../../models/user_model.dart';
 
 class UserDetailsScreen extends StatelessWidget {
@@ -18,6 +19,23 @@ class UserDetailsScreen extends StatelessWidget {
           _buildProfileCard(),
           const SizedBox(height: 16),
           _buildInfoCard(),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RealtimeChatScreen(
+                    channelId: 'admin_user_${user.id}',
+                    chatTitle: 'Chat: ${user.fullName}',
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('Chat with User'),
+            ),
+          ),
         ],
       ),
     );

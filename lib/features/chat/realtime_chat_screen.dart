@@ -10,10 +10,11 @@ class RealtimeChatScreen extends StatelessWidget {
   const RealtimeChatScreen({
     super.key,
     this.channelId = 'general',
-    this.readOnly = false,
+    this.chatTitle = 'Chat',
   });
 
   final String channelId;
+  final String chatTitle;
 
   /// When true the input bar is hidden and a read-only banner is shown.
   /// Used for the admin navigation tab.
@@ -24,14 +25,15 @@ class RealtimeChatScreen extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) =>
       ChatViewModel(channelId: channelId)..loadMessages(),
-      child: _ChatView(readOnly: readOnly),
+      child: _ChatView(chatTitle: chatTitle),
     );
   }
 }
 
 class _ChatView extends StatelessWidget {
-  const _ChatView({required this.readOnly});
-  final bool readOnly;
+  const _ChatView({required this.chatTitle});
+
+  final String chatTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +42,7 @@ class _ChatView extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF4FAF6),
       appBar: AppBar(
-        title: const Text('Chat'),
+        title: Text(chatTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

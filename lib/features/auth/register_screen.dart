@@ -107,9 +107,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _emailController,
                       hint: 'Enter your email',
                       keyboardType: TextInputType.emailAddress,
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Email is required'
-                          : null,
+                      validator: _validateEmail,
                     ),
                     const SizedBox(height: 16),
 
@@ -283,11 +281,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit(BuildContext context, AuthViewModel vm) async {
     if (!_formKey.currentState!.validate()) return;
+    final email = _emailController.text.trim();
+
+    final alreadyExists = await vm.doesEmailExist(email);
+    if (alreadyExists) {
+      if (!context.mounted) return;
+      final goToSignIn = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Email already registered'),
+          content: const Text(
+            'This email has already signed up before. '
+            'Please sign in or use a different email.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Use Different Email'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Go to Sign In'),
+            ),
+          ],
+        ),
+      );
+
+      if (goToSignIn == true && context.mounted) {
+        Navigator.pop(context);
+      }
+      return;
+    }
+
     await vm.signUp(
-      email: _emailController.text.trim(),
+      email: email,
       password: _passwordController.text,
       fullName: _nameController.text.trim(),
     );
+  }
+
+  String? _validateEmail(String? value) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) return 'Email is required';
+    if (!email.contains('@')) return 'Email must contain "@"';
+    return null;
   }
 
   String? _validatePassword(String? value) {
