@@ -1,4 +1,5 @@
 // lib/features/admin/viewmodels/admin_facility_view_model.dart
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../core/repositories/facility_repository.dart';
@@ -46,6 +47,23 @@ class AdminFacilityViewModel extends ChangeNotifier {
       _errorMessage = e.toString();
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<String?> uploadFacilityImage({
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    try {
+      final path = await _repo.uploadFacilityImage(
+        bytes: bytes,
+        fileName: fileName,
+      );
+      return path;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return null;
     }
   }
 

@@ -3,8 +3,10 @@
 // create_upcoming_booking_reminders() — no client-side scheduling needed.
 import 'package:flutter/material.dart';
 
+import '../../../core/local/local_booking_cache.dart';
 import '../../../core/services/booking_service.dart';
 import '../../../core/supabase/supabase_config.dart';
+import '../../../models/booking_model.dart';
 import '../../rewardPoints/viewmodels/reward_points_view_model.dart';
 
 enum PayMethod { tng, card, banking }
@@ -226,6 +228,8 @@ class PaymentViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final createdBookings = <Booking>[];
+
       // Retry persisting latest payment setup at checkout time.
       // This ensures edits made while offline are saved once connection returns.
       await _persistPaymentSetup();
@@ -245,6 +249,7 @@ class PaymentViewModel extends ChangeNotifier {
           startHour: item.startHour,
           endHour: item.endHour,
         );
+        createdBookings.add(booking);
 
         final double slotAmount =
             (item.pricePerSlot - (rewardDiscount / items.length))
@@ -265,6 +270,8 @@ class PaymentViewModel extends ChangeNotifier {
         description: 'Earned from booking at '
             '${items.isNotEmpty ? items.first.facilityName : "facility"}',
       );
+      await _cacheCreatedBookings(createdBookings);
+      await RewardPointsViewModel.refreshLocalCache();
 
       _status = PaymentStatus.success;
     } catch (e) {
@@ -273,6 +280,15 @@ class PaymentViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  Future<void> _cacheCreatedBookings(List<Booking> bookings) async {
+    if (bookings.isEmpty) return;
+    try {
+      await LocalBookingCache().saveBookings(bookings);
+    } catch (_) {
+      // Cache failure should not block successful payment.
+    }
   }
 
   void resetError() {

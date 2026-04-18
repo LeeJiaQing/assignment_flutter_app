@@ -110,6 +110,7 @@ class RewardPointsViewModel extends ChangeNotifier {
         'points': points,
         'description': description,
       });
+      await refreshLocalCache();
     } catch (e) {
       // Silently fail — don't block payment flow
       debugPrint('RewardPoints.earnPoints error: $e');
@@ -131,6 +132,7 @@ class RewardPointsViewModel extends ChangeNotifier {
         'points': -points, // negative = redemption
         'description': description,
       });
+      await refreshLocalCache();
       return true;
     } catch (e) {
       debugPrint('RewardPoints.redeemPoints error: $e');
@@ -154,6 +156,33 @@ class RewardPointsViewModel extends ChangeNotifier {
       return total < 0 ? 0 : total;
     } catch (_) {
       return 0;
+    }
+  }
+
+  /// Pull latest reward transactions from backend and persist to local cache.
+  static Future<void> refreshLocalCache() async {
+    try {
+      if (!ConnectivityService.instance.isOnline) return;
+
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await supabase
+          .from('reward_transactions')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      final transactions = (response as List<dynamic>)
+          .map((json) => RewardTransaction.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      await LocalRewardCache().saveTransactions(
+        userId: userId,
+        transactions: transactions,
+      );
+    } catch (_) {
+      // Non-blocking cache refresh only.
     }
   }
 }

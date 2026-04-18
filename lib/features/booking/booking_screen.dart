@@ -85,15 +85,21 @@ class _BookingList extends StatelessWidget {
           ),
         ),
       BookingListStatus.loaded => vm.bookings.isEmpty
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.calendar_today_outlined,
+                  const Icon(Icons.calendar_today_outlined,
                       size: 48, color: Colors.grey),
-                  SizedBox(height: 12),
-                  Text('No bookings yet',
+                  const SizedBox(height: 12),
+                  const Text('No bookings yet',
                       style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.pushNamed(context, '/facility'),
+                    icon: const Icon(Icons.sports_tennis),
+                    label: const Text('Book a Court'),
+                  ),
                 ],
               ),
             )
