@@ -50,8 +50,7 @@ class _PartyView extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            Navigator.pushNamed(context, '/party/create'),
+        onPressed: () => Navigator.pushNamed(context, '/party/create'),
         icon: const Icon(Icons.add),
         label: const Text('Host Session'),
         backgroundColor: const Color(0xFF1C894E),
@@ -65,24 +64,18 @@ class _PartyView extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Find a',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF1C3A2A),
-            height: 1.1,
-          ),
-        ),
-        Text(
-          'Party',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF1C894E),
-            height: 1.1,
-          ),
-        ),
+        Text('Find a',
+            style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF1C3A2A),
+                height: 1.1)),
+        Text('Party',
+            style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF1C894E),
+                height: 1.1)),
       ],
     ),
   );
@@ -96,8 +89,7 @@ class _SessionList extends StatelessWidget {
     final vm = context.watch<PartyViewModel>();
 
     return switch (vm.status) {
-      PartyStatus.initial ||
-      PartyStatus.loading =>
+      PartyStatus.initial || PartyStatus.loading =>
       const Center(child: CircularProgressIndicator()),
       PartyStatus.error => Center(
         child: Column(
@@ -105,70 +97,72 @@ class _SessionList extends StatelessWidget {
           children: [
             const Icon(Icons.wifi_off, size: 48, color: Colors.grey),
             const SizedBox(height: 12),
-            Text(
-              vm.errorMessage ?? 'Failed to load sessions',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
+            Text(vm.errorMessage ?? 'Failed to load sessions',
+                style: TextStyle(color: Colors.grey.shade600)),
             TextButton(
-              onPressed: () =>
-                  context.read<PartyViewModel>().loadSessions(),
+              onPressed: () => context.read<PartyViewModel>().loadSessions(),
               child: const Text('Retry'),
             ),
           ],
         ),
       ),
-      PartyStatus.loaded => vm.sessions.isEmpty
-          ? const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.sports_soccer,
-                size: 48, color: Colors.grey),
-            SizedBox(height: 12),
-            Text('No sessions yet. Be the first to host!',
-                style: TextStyle(color: Colors.grey)),
-          ],
-        ),
-      )
-          : RefreshIndicator(
-        onRefresh: () =>
-            context.read<PartyViewModel>().loadSessions(),
-        child: ListView.builder(
-          padding:
-          const EdgeInsets.fromLTRB(16, 8, 16, 80),
-          itemCount: vm.sessions.length,
-          itemBuilder: (_, i) {
-            final session = vm.sessions[i];
-            return PartySessionCard(
-              session: session,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PartyDetailChatScreen(
-                    session: session,
-                  ),
-                ),
-              ),
-              onJoin: () =>
-                  _handleJoin(context, session.id),
-            );
-          },
-        ),
-      ),
+      PartyStatus.loaded => _buildList(context, vm),
     };
   }
 
-  Future<void> _handleJoin(
-      BuildContext context, String sessionId) async {
+  Widget _buildList(BuildContext context, PartyViewModel vm) {
+    // Show ALL sessions — host sees their own with "Hosting" badge and no join button.
+    final sessions = vm.allSessions;
+
+    if (sessions.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sports_soccer, size: 48, color: Colors.grey),
+            SizedBox(height: 12),
+            Text('No sessions available.\nBe the first to host!',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => context.read<PartyViewModel>().loadSessions(),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+        itemCount: sessions.length,
+        itemBuilder: (_, i) {
+          final session = sessions[i];
+          return PartySessionCard(
+            session: session,
+            isJoined: vm.isJoined(session.id),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PartyDetailChatScreen(session: session),
+              ),
+            ),
+            onJoin: () => _handleJoin(context, session.id),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _handleJoin(BuildContext context, String sessionId) async {
     final success =
     await context.read<PartyViewModel>().joinSession(sessionId);
     if (!context.mounted) return;
 
+    final vm = context.read<PartyViewModel>();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(success
             ? 'You have joined the session!'
-            : 'Failed to join. Please try again.'),
+            : vm.errorMessage ?? 'Failed to join. Please try again.'),
         backgroundColor:
         success ? const Color(0xFF1C894E) : Colors.red.shade700,
       ),

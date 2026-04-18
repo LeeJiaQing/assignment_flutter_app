@@ -16,6 +16,10 @@ class RealtimeChatScreen extends StatelessWidget {
   final String channelId;
   final String chatTitle;
 
+  /// When true the input bar is hidden and a read-only banner is shown.
+  /// Used for the admin navigation tab.
+  final bool readOnly;
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
@@ -49,6 +53,28 @@ class _ChatView extends StatelessWidget {
       ),
       body: Column(
         children: [
+          // Admin read-only banner
+          if (readOnly)
+            Container(
+              color: const Color(0xFFD6F0E0),
+              width: double.infinity,
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: const Row(
+                children: [
+                  Icon(Icons.visibility_outlined,
+                      color: Color(0xFF1C894E), size: 16),
+                  SizedBox(width: 8),
+                  Text(
+                    'Admin view — read only',
+                    style: TextStyle(
+                        color: Color(0xFF1C894E),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: vm.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -59,10 +85,15 @@ class _ChatView extends StatelessWidget {
             )
                 : _MessageList(messages: vm.messages),
           ),
-          ChatInputBar(
-            onSend: (text) =>
-                context.read<ChatViewModel>().sendMessage(text),
-          ),
+          // Hide input bar for admins
+          if (!readOnly)
+            SafeArea(
+              top: false,
+              child: ChatInputBar(
+                onSend: (text) =>
+                    context.read<ChatViewModel>().sendMessage(text),
+              ),
+            ),
         ],
       ),
     );
@@ -108,7 +139,8 @@ class _MessageListState extends State<_MessageList> {
       controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       itemCount: widget.messages.length,
-      itemBuilder: (_, i) => MessageBubble(message: widget.messages[i]),
+      itemBuilder: (_, i) =>
+          MessageBubble(message: widget.messages[i]),
     );
   }
 }

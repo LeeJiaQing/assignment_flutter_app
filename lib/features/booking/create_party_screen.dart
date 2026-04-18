@@ -1,11 +1,14 @@
 // lib/features/booking/create_party_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/repositories/booking_repository.dart';
 import '../../core/repositories/facility_repository.dart';
 import '../../core/services/booking_service.dart';
+import '../../core/services/navigation_service.dart';
 import '../../core/supabase/supabase_config.dart';
 import '../../models/booking_model.dart';
+import '../home/viewmodels/navigation_view_model.dart';
 
 class CreatePartyScreen extends StatefulWidget {
   const CreatePartyScreen({super.key});
@@ -49,7 +52,7 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
       final all = await service.fetchMyBookingsWithFacilities();
       final now = DateTime.now();
 
-      // Only confirmed bookings whose start time is in the future
+      // Only confirmed bookings whose start time is in the future.
       final eligible = all.where((bwf) {
         final b = bwf.booking;
         if (b.status != 'confirmed') return false;
@@ -93,7 +96,7 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Select booking slot ────────────────────────────
+              // ── Select booking slot ────────────────────────
               const Text(
                 'Select Your Booked Slot',
                 style: TextStyle(
@@ -105,7 +108,8 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
               const SizedBox(height: 4),
               const Text(
                 'Only future confirmed bookings are shown.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style:
+                TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 10),
               ..._eligibleBookings.map((opt) {
@@ -131,7 +135,8 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color:
+                          Colors.black.withOpacity(0.04),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -172,7 +177,8 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '${_fmtDate(b.date)}  •  ${_fmt(b.startHour)} – ${_fmt(b.endHour)}',
+                                '${_fmtDate(b.date)}  •  '
+                                    '${_fmt(b.startHour)} – ${_fmt(b.endHour)}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.black54,
@@ -204,19 +210,21 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
               const Divider(),
               const SizedBox(height: 8),
 
-              // ── Sport ──────────────────────────────────────────
+              // ── Sport ──────────────────────────────────────
               _Field(
                 controller: _sportController,
                 label: 'Sport (e.g. Badminton)',
               ),
 
-              // ── Max Players ────────────────────────────────────
+              // ── Max Players ────────────────────────────────
               _Field(
                 controller: _maxPlayersController,
                 label: 'Max Players',
                 keyboardType: TextInputType.number,
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Required';
+                  }
                   final n = int.tryParse(v.trim());
                   if (n == null || n < 2) return 'Min 2 players';
                   if (n > 20) return 'Max 20 players';
@@ -224,7 +232,7 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                 },
               ),
 
-              // ── Notes ──────────────────────────────────────────
+              // ── Notes ──────────────────────────────────────
               _Field(
                 controller: _notesController,
                 label: 'Notes (optional)',
@@ -239,14 +247,14 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1C894E),
                     foregroundColor: Colors.white,
-                    padding:
-                    const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                        borderRadius:
+                        BorderRadius.circular(12)),
                   ),
-                  onPressed: _submitting
-                      ? null
-                      : () => _submit(context),
+                  onPressed:
+                  _submitting ? null : () => _submit(context),
                   child: _submitting
                       ? const SizedBox(
                     height: 20,
@@ -304,7 +312,25 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 24, vertical: 12),
               ),
-              onPressed: () => Navigator.pop(context),
+              onPressed: () async {
+                // Pop every route until we're back at MainNavigation (the first route).
+                NavigationService.instance.popToRoot();
+
+                // Give the navigator a frame to settle, then switch to Facility tab.
+                await Future.delayed(const Duration(milliseconds: 100));
+
+                final navCtx =
+                    NavigationService.instance.navigator?.context;
+                if (navCtx != null && navCtx.mounted) {
+                  try {
+                    // ignore: use_build_context_synchronously
+                    Provider.of<NavigationViewModel>(navCtx, listen: false)
+                        .setTab(1); // index 1 = Facility for both roles
+                  } catch (_) {
+                    // NavigationViewModel not found — already on home, that's fine.
+                  }
+                }
+              },
               child: const Text('Book a Court'),
             ),
           ],

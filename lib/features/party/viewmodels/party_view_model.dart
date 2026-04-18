@@ -60,9 +60,39 @@ class PartyViewModel extends ChangeNotifier {
   List<PartySession> _sessions = [];
   String? _errorMessage;
 
+  /// Set of session IDs the current user has already joined (as a member, not host).
+  final Set<String> _joinedSessionIds = {};
+  bool _joinedLoaded = false;
+
   PartyStatus get status => _status;
   List<PartySession> get sessions => _sessions;
   String? get errorMessage => _errorMessage;
+  bool get joinedLoaded => _joinedLoaded;
+
+  String? get currentUserId => supabase.auth.currentUser?.id;
+
+  /// Returns true if the current user has already joined the given session
+  /// (either as host or as a member).
+  bool isJoined(String sessionId) {
+    final uid = currentUserId;
+    if (uid == null) return false;
+    final session = _sessions.where((s) => s.id == sessionId).firstOrNull;
+    if (session != null && session.hostId == uid) return true;
+    return _joinedSessionIds.contains(sessionId);
+  }
+
+  /// All sessions — ALL shown on the public party list.
+  /// The host's own session is visible but with a "Hosting" badge and no join button.
+  List<PartySession> get allSessions => _sessions;
+
+  /// Sessions the current user is either hosting or has joined.
+  List<PartySession> get mySessions {
+    final uid = currentUserId;
+    if (uid == null) return [];
+    return _sessions
+        .where((s) => s.hostId == uid || _joinedSessionIds.contains(s.id))
+        .toList();
+  }
 
   Future<void> loadSessions() async {
     _status = PartyStatus.loading;
@@ -72,12 +102,15 @@ class PartyViewModel extends ChangeNotifier {
     try {
       final response = await supabase
           .from('party_sessions')
-          .select('*, facilities(name), profiles(full_name)')
+          .select(
+        '*, '
+            'facilities!party_sessions_facility_id_fkey(name), '
+            'profiles!party_sessions_host_id_fkey(full_name)',
+      )
           .order('date', ascending: true);
 
       _sessions = (response as List<dynamic>)
-          .map((json) =>
-          PartySession.fromJson(json as Map<String, dynamic>))
+          .map((json) => PartySession.fromJson(json as Map<String, dynamic>))
           .toList();
       _status = PartyStatus.loaded;
     } catch (e) {
@@ -86,17 +119,74 @@ class PartyViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
+    // Load joined IDs in parallel after sessions are ready.
+    await _loadJoinedSessionIds();
+  }
+
+  Future<void> _loadJoinedSessionIds() async {
+    try {
+      final userId = currentUserId;
+      if (userId == null) {
+        _joinedLoaded = true;
+        notifyListeners();
+        return;
+      }
+      final response = await supabase
+          .from('party_members')
+          .select('session_id')
+          .eq('user_id', userId);
+
+      _joinedSessionIds
+        ..clear()
+        ..addAll((response as List<dynamic>)
+            .map((r) => r['session_id'] as String));
+      _joinedLoaded = true;
+      notifyListeners();
+    } catch (_) {
+      _joinedLoaded = true;
+      notifyListeners();
+    }
   }
 
   Future<bool> joinSession(String sessionId) async {
     try {
-      final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return false;
+      final userId = currentUserId;
+      if (userId == null) {
+        _errorMessage = 'You must be signed in to join a session.';
+        notifyListeners();
+        return false;
+      }
+
+      // Check if already a member.
+      final existing = await supabase
+          .from('party_members')
+          .select('id')
+          .eq('session_id', sessionId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (existing != null) {
+        _errorMessage = 'You have already joined this session.';
+        notifyListeners();
+        return false;
+      }
 
       await supabase.from('party_members').insert({
         'session_id': sessionId,
         'user_id': userId,
       });
+
+      // Increment player count using RPC if available, otherwise manual update.
+      try {
+        await supabase.rpc('increment_party_players', params: {
+          'session_id_input': sessionId,
+        });
+      } catch (_) {
+        final session = _sessions.firstWhere((s) => s.id == sessionId);
+        await supabase.from('party_sessions').update({
+          'current_players': session.currentPlayers + 1,
+        }).eq('id', sessionId);
+      }
 
       await loadSessions();
       return true;

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/repositories/auth_repository.dart';
 import '../../core/supabase/supabase_config.dart';
 import 'viewmodels/party_view_model.dart';
 import '../chat/viewmodels/chat_view_model.dart';
@@ -36,18 +37,30 @@ class _PartyDetailChatView extends StatefulWidget {
   final PartySession session;
 
   @override
-  State<_PartyDetailChatView> createState() =>
-      _PartyDetailChatViewState();
+  State<_PartyDetailChatView> createState() => _PartyDetailChatViewState();
 }
 
 class _PartyDetailChatViewState extends State<_PartyDetailChatView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  bool _isAdmin = false;
+  bool _roleChecked = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _checkRole();
+  }
+
+  Future<void> _checkRole() async {
+    final role = await AuthRepository().getCurrentUserRole();
+    if (mounted) {
+      setState(() {
+        _isAdmin = role == UserRole.admin;
+        _roleChecked = true;
+      });
+    }
   }
 
   @override
@@ -56,8 +69,7 @@ class _PartyDetailChatViewState extends State<_PartyDetailChatView>
     super.dispose();
   }
 
-  bool get _isHost =>
-      supabase.auth.currentUser?.id == widget.session.hostId;
+  bool get _isHost => supabase.auth.currentUser?.id == widget.session.hostId;
 
   String _fmt(int h) {
     final suffix = h < 12 ? 'AM' : 'PM';
@@ -66,7 +78,7 @@ class _PartyDetailChatViewState extends State<_PartyDetailChatView>
   }
 
   String get _timeLabel =>
-      '${_fmt(widget.session.startHour)} – ${_fmt(widget.session.endHour)}';
+      '${_fmt(widget.session.startHour)} \u2013 ${_fmt(widget.session.endHour)}';
 
   String get _dateLabel {
     final d = widget.session.date;
@@ -79,10 +91,8 @@ class _PartyDetailChatViewState extends State<_PartyDetailChatView>
     return Scaffold(
       backgroundColor: const Color(0xFFF4FAF6),
       appBar: AppBar(
-        title: Text(
-          widget.session.facilityName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Text(widget.session.facilityName,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         bottom: TabBar(
           controller: _tabController,
           labelColor: const Color(0xFF1C894E),
@@ -90,9 +100,7 @@ class _PartyDetailChatViewState extends State<_PartyDetailChatView>
           indicatorColor: const Color(0xFF1C894E),
           tabs: const [
             Tab(icon: Icon(Icons.info_outline), text: 'Details'),
-            Tab(
-                icon: Icon(Icons.chat_bubble_outline),
-                text: 'Chat'),
+            Tab(icon: Icon(Icons.chat_bubble_outline), text: 'Chat'),
           ],
         ),
       ),
@@ -102,10 +110,17 @@ class _PartyDetailChatViewState extends State<_PartyDetailChatView>
           _DetailsTab(
             session: widget.session,
             isHost: _isHost,
+            isAdmin: _isAdmin,
+            roleChecked: _roleChecked,
             dateLabel: _dateLabel,
             timeLabel: _timeLabel,
+            onSwitchToChat: () => _tabController.animateTo(1),
           ),
-          _ChatTab(channelId: 'party_${widget.session.id}'),
+          _ChatTab(
+            channelId: 'party_${widget.session.id}',
+            isAdmin: _isAdmin,
+            roleChecked: _roleChecked,
+          ),
         ],
       ),
     );
@@ -118,19 +133,34 @@ class _DetailsTab extends StatelessWidget {
   const _DetailsTab({
     required this.session,
     required this.isHost,
+    required this.isAdmin,
+    required this.roleChecked,
     required this.dateLabel,
     required this.timeLabel,
+    required this.onSwitchToChat,
   });
 
   final PartySession session;
   final bool isHost;
+  final bool isAdmin;
+  final bool roleChecked;
   final String dateLabel;
   final String timeLabel;
+  final VoidCallback onSwitchToChat;
 
   @override
   Widget build(BuildContext context) {
+    final partyVm = context.watch<PartyViewModel>();
+    final alreadyJoined = partyVm.isJoined(session.id);
+
     return ListView(
-      padding: const EdgeInsets.all(16),
+      // SafeArea ensures content doesn't hide behind system navigation buttons.
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: MediaQuery.of(context).padding.bottom + 16,
+      ),
       children: [
         // ── Header card ────────────────────────────────────────────────
         Container(
@@ -155,120 +185,69 @@ class _DetailsTab extends StatelessWidget {
                       color: Colors.white.withOpacity(0.25),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
-                      session.sport,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12),
-                    ),
+                    child: Text(session.sport,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12)),
                   ),
                   const Spacer(),
                   if (isHost)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.star,
-                              color: Colors.white, size: 13),
-                          SizedBox(width: 4),
-                          Text('You\'re hosting',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
+                    _HeaderBadge(label: "You're hosting"),
+                  if (isAdmin && !isHost)
+                    _HeaderBadge(
+                        label: 'Admin view',
+                        icon: Icons.admin_panel_settings),
                 ],
               ),
               const SizedBox(height: 14),
-              Text(
-                session.facilityName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text(session.facilityName,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               _WhiteInfoRow(
-                  icon: Icons.calendar_today_outlined,
-                  text: dateLabel),
+                  icon: Icons.calendar_today_outlined, text: dateLabel),
               const SizedBox(height: 4),
               _WhiteInfoRow(
                   icon: Icons.access_time_outlined, text: timeLabel),
             ],
           ),
         ),
-
         const SizedBox(height: 16),
 
         // ── Players card ───────────────────────────────────────────────
         _InfoCard(
           title: 'Players',
           icon: Icons.group_outlined,
-          child: Column(
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _StatBox(
-                      label: 'Joined',
-                      value: '${session.currentPlayers}',
-                      color: const Color(0xFF1C894E),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatBox(
-                      label: 'Max',
-                      value: '${session.maxPlayers}',
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatBox(
-                      label: 'Open Spots',
-                      value: '${session.spotsLeft}',
-                      color: session.isFull
-                          ? Colors.red
-                          : const Color(0xFF6DCC98),
-                    ),
-                  ),
-                ],
-              ),
-              if (session.isFull) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline,
-                          color: Colors.red, size: 16),
-                      SizedBox(width: 8),
-                      Text('This session is full.',
-                          style: TextStyle(
-                              color: Colors.red, fontSize: 12)),
-                    ],
-                  ),
+              Expanded(
+                child: _StatBox(
+                  label: 'Joined',
+                  value: '${session.currentPlayers}',
+                  color: const Color(0xFF1C894E),
                 ),
-              ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatBox(
+                    label: 'Max',
+                    value: '${session.maxPlayers}',
+                    color: Colors.grey),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatBox(
+                  label: 'Open Spots',
+                  value: '${session.spotsLeft}',
+                  color: session.isFull ? Colors.red : const Color(0xFF6DCC98),
+                ),
+              ),
             ],
           ),
         ),
-
         const SizedBox(height: 12),
 
         // ── Host card ──────────────────────────────────────────────────
@@ -290,11 +269,9 @@ class _DetailsTab extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                session.hostName,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 14),
-              ),
+              Text(session.hostName,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 14)),
               if (isHost) ...[
                 const SizedBox(width: 8),
                 Container(
@@ -304,13 +281,11 @@ class _DetailsTab extends StatelessWidget {
                     color: const Color(0xFFD6F0E0),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Text(
-                    'You',
-                    style: TextStyle(
-                        color: Color(0xFF1C894E),
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold),
-                  ),
+                  child: const Text('You',
+                      style: TextStyle(
+                          color: Color(0xFF1C894E),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
                 ),
               ],
             ],
@@ -322,56 +297,92 @@ class _DetailsTab extends StatelessWidget {
           _InfoCard(
             title: 'Notes',
             icon: Icons.notes_outlined,
-            child: Text(
-              session.notes!,
-              style: const TextStyle(
-                  fontSize: 13, color: Colors.black87, height: 1.5),
-            ),
+            child: Text(session.notes!,
+                style: const TextStyle(
+                    fontSize: 13, color: Colors.black87, height: 1.5)),
           ),
         ],
-
         const SizedBox(height: 16),
 
-        // ── Join button (non-hosts only, if not full) ──────────────────
-        if (!isHost && !session.isFull)
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.group_add_outlined),
-              label: const Text('Join This Session'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6DCC98),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              onPressed: () => _handleJoin(context),
+        // ── Action buttons ─────────────────────────────────────────────
+        if (!roleChecked)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
             ),
-          ),
-
-        if (!isHost && session.isFull)
+          )
+        else if (!isAdmin) ...[
+          // Member actions
+          if (!isHost) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: Icon(alreadyJoined
+                    ? Icons.check_circle_outline
+                    : Icons.group_add_outlined),
+                label: Text(alreadyJoined
+                    ? 'Joined'
+                    : session.isFull
+                    ? 'Session Full'
+                    : 'Join This Session'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: alreadyJoined
+                      ? Colors.blue.shade50
+                      : session.isFull
+                      ? Colors.grey.shade300
+                      : const Color(0xFF6DCC98),
+                  foregroundColor: alreadyJoined
+                      ? Colors.blue
+                      : session.isFull
+                      ? Colors.grey.shade600
+                      : Colors.white,
+                  elevation: 0,
+                  disabledBackgroundColor: alreadyJoined
+                      ? Colors.blue.shade50
+                      : Colors.grey.shade300,
+                  disabledForegroundColor: alreadyJoined
+                      ? Colors.blue
+                      : Colors.grey.shade600,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: (alreadyJoined || session.isFull)
+                    ? null
+                    : () => _handleJoin(context),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ] else ...[
+          // Admin read-only banner
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: const Color(0xFFD6F0E0),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.block, color: Colors.grey, size: 18),
+                Icon(Icons.admin_panel_settings,
+                    color: Color(0xFF1C894E), size: 18),
                 SizedBox(width: 8),
-                Text('Session is full',
-                    style: TextStyle(color: Colors.grey)),
+                Expanded(
+                  child: Text('You are viewing this session as an admin.',
+                      style:
+                      TextStyle(color: Color(0xFF1C894E), fontSize: 13)),
+                ),
               ],
             ),
           ),
+          const SizedBox(height: 8),
+        ],
 
-        const SizedBox(height: 8),
-
-        // Chat shortcut button
+        // Open Chat button — always visible
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
@@ -384,16 +395,9 @@ class _DetailsTab extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14)),
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            onPressed: () {
-              // Switch to chat tab
-              final tabController = context
-                  .findAncestorStateOfType<_PartyDetailChatViewState>()
-                  ?._tabController;
-              tabController?.animateTo(1);
-            },
+            onPressed: onSwitchToChat,
           ),
         ),
-        const SizedBox(height: 32),
       ],
     );
   }
@@ -406,22 +410,26 @@ class _DetailsTab extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(success
-            ? 'You\'ve joined the session!'
+            ? "You've joined the session!"
             : 'Failed to join. ${vm.errorMessage ?? ''}'),
         backgroundColor:
         success ? const Color(0xFF1C894E) : Colors.red.shade700,
       ),
     );
-
-    if (success) Navigator.pop(context);
   }
 }
 
 // ── Chat Tab ───────────────────────────────────────────────────────────────
 
 class _ChatTab extends StatelessWidget {
-  const _ChatTab({required this.channelId});
+  const _ChatTab({
+    required this.channelId,
+    required this.isAdmin,
+    required this.roleChecked,
+  });
   final String channelId;
+  final bool isAdmin;
+  final bool roleChecked;
 
   @override
   Widget build(BuildContext context) {
@@ -429,6 +437,24 @@ class _ChatTab extends StatelessWidget {
 
     return Column(
       children: [
+        if (roleChecked && isAdmin)
+          Container(
+            color: const Color(0xFFD6F0E0),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: const Row(
+              children: [
+                Icon(Icons.visibility_outlined,
+                    color: Color(0xFF1C894E), size: 16),
+                SizedBox(width: 8),
+                Text('Admin view \u2014 read only',
+                    style: TextStyle(
+                        color: Color(0xFF1C894E),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
         Expanded(
           child: vm.isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -438,8 +464,7 @@ class _ChatTab extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.chat_bubble_outline,
-                    size: 48,
-                    color: Colors.grey.shade300),
+                    size: 48, color: Colors.grey.shade300),
                 const SizedBox(height: 12),
                 const Text(
                   'No messages yet.\nSay hello to your session mates!',
@@ -451,10 +476,15 @@ class _ChatTab extends StatelessWidget {
           )
               : _MessageList(messages: vm.messages),
         ),
-        ChatInputBar(
-          onSend: (text) =>
-              context.read<ChatViewModel>().sendMessage(text),
-        ),
+        // Input bar only for members — also respects system nav insets
+        if (roleChecked && !isAdmin)
+          SafeArea(
+            top: false,
+            child: ChatInputBar(
+              onSend: (text) =>
+                  context.read<ChatViewModel>().sendMessage(text),
+            ),
+          ),
       ],
     );
   }
@@ -499,13 +529,42 @@ class _MessageListState extends State<_MessageList> {
       controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       itemCount: widget.messages.length,
-      itemBuilder: (_, i) =>
-          MessageBubble(message: widget.messages[i]),
+      itemBuilder: (_, i) => MessageBubble(message: widget.messages[i]),
     );
   }
 }
 
-// ── Reusable widgets ───────────────────────────────────────────────────────
+// ── Reusable helper widgets ────────────────────────────────────────────────
+
+class _HeaderBadge extends StatelessWidget {
+  const _HeaderBadge(
+      {required this.label, this.icon = Icons.star});
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.25),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 13),
+          const SizedBox(width: 4),
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
 
 class _WhiteInfoRow extends StatelessWidget {
   const _WhiteInfoRow({required this.icon, required this.text});
@@ -518,9 +577,7 @@ class _WhiteInfoRow extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: Colors.white70),
         const SizedBox(width: 6),
-        Text(text,
-            style:
-            const TextStyle(color: Colors.white70, fontSize: 13)),
+        Text(text, style: const TextStyle(color: Colors.white70, fontSize: 13)),
       ],
     );
   }
@@ -528,9 +585,7 @@ class _WhiteInfoRow extends StatelessWidget {
 
 class _InfoCard extends StatelessWidget {
   const _InfoCard(
-      {required this.title,
-        required this.icon,
-        required this.child});
+      {required this.title, required this.icon, required this.child});
   final String title;
   final IconData icon;
   final Widget child;
@@ -544,10 +599,9 @@ class _InfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2))
         ],
       ),
       child: Column(
@@ -557,13 +611,11 @@ class _InfoCard extends StatelessWidget {
             children: [
               Icon(icon, size: 16, color: const Color(0xFF1C894E)),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: Color(0xFF1C3A2A)),
-              ),
+              Text(title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFF1C3A2A))),
             ],
           ),
           const SizedBox(height: 12),
@@ -576,9 +628,7 @@ class _InfoCard extends StatelessWidget {
 
 class _StatBox extends StatelessWidget {
   const _StatBox(
-      {required this.label,
-        required this.value,
-        required this.color});
+      {required this.label, required this.value, required this.color});
   final String label;
   final String value;
   final Color color;
@@ -593,19 +643,14 @@ class _StatBox extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text(value,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.grey, fontSize: 11),
-          ),
+          Text(label,
+              style: const TextStyle(color: Colors.grey, fontSize: 11)),
         ],
       ),
     );

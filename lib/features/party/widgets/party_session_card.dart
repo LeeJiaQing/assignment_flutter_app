@@ -10,11 +10,13 @@ class PartySessionCard extends StatelessWidget {
     required this.session,
     required this.onJoin,
     this.onTap,
+    this.isJoined = false,
   });
 
   final PartySession session;
   final VoidCallback onJoin;
   final VoidCallback? onTap;
+  final bool isJoined;
 
   String _fmt(int h) {
     final suffix = h < 12 ? 'AM' : 'PM';
@@ -23,7 +25,7 @@ class PartySessionCard extends StatelessWidget {
   }
 
   String get _timeLabel =>
-      '${_fmt(session.startHour)} – ${_fmt(session.endHour)}';
+      '${_fmt(session.startHour)} \u2013 ${_fmt(session.endHour)}';
 
   String get _dateLabel {
     final d = session.date;
@@ -60,31 +62,17 @@ class PartySessionCard extends StatelessWidget {
                 children: [
                   _SportBadge(sport: session.sport),
                   const SizedBox(width: 8),
-                  // Show "You're hosting" badge if current user is host
                   if (_isHost)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1C894E).withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.star,
-                              size: 12, color: Color(0xFF1C894E)),
-                          SizedBox(width: 3),
-                          Text(
-                            'Hosting',
-                            style: TextStyle(
-                              color: Color(0xFF1C894E),
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                    _StatusBadge(
+                      label: 'Hosting',
+                      icon: Icons.star,
+                      color: const Color(0xFF1C894E),
+                    ),
+                  if (!_isHost && isJoined)
+                    _StatusBadge(
+                      label: 'Joined',
+                      icon: Icons.check_circle_outline,
+                      color: Colors.blue,
                     ),
                   const Spacer(),
                   _PlayersBadge(session: session),
@@ -100,73 +88,63 @@ class PartySessionCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              _InfoRow(
-                  icon: Icons.calendar_today_outlined,
-                  text: _dateLabel),
+              _InfoRow(icon: Icons.calendar_today_outlined, text: _dateLabel),
               const SizedBox(height: 3),
-              _InfoRow(
-                  icon: Icons.access_time_outlined, text: _timeLabel),
+              _InfoRow(icon: Icons.access_time_outlined, text: _timeLabel),
               const SizedBox(height: 3),
-              _InfoRow(
-                  icon: Icons.person_outline,
-                  text: 'Host: ${session.hostName}'),
-              if (session.notes != null &&
-                  session.notes!.isNotEmpty) ...[
+              _InfoRow(icon: Icons.person_outline, text: 'Host: ${session.hostName}'),
+              if (session.notes != null && session.notes!.isNotEmpty) ...[
                 const SizedBox(height: 3),
-                _InfoRow(
-                    icon: Icons.notes_outlined, text: session.notes!),
+                _InfoRow(icon: Icons.notes_outlined, text: session.notes!),
               ],
               const SizedBox(height: 12),
-
-              // ── Action row ─────────────────────────────────────────────
               Row(
                 children: [
-                  // Chat / View Details button — always visible
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.chat_bubble_outline,
-                          size: 16),
+                      icon: const Icon(Icons.chat_bubble_outline, size: 16),
                       label: const Text('View & Chat'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF1C894E),
-                        side: const BorderSide(
-                            color: Color(0xFF1C894E)),
+                        side: const BorderSide(color: Color(0xFF1C894E)),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
-                        padding:
-                        const EdgeInsets.symmetric(vertical: 10),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
                       onPressed: onTap,
                     ),
                   ),
-
-                  // Join button — hidden for host
                   if (!_isHost) ...[
                     const SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: session.isFull
+                          backgroundColor: isJoined
+                              ? Colors.blue.shade50
+                              : session.isFull
                               ? Colors.grey.shade300
                               : const Color(0xFF6DCC98),
-                          foregroundColor: session.isFull
+                          foregroundColor: isJoined
+                              ? Colors.blue
+                              : session.isFull
                               ? Colors.grey.shade600
                               : Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                              borderRadius:
-                              BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 10),
+                              borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          disabledBackgroundColor: isJoined
+                              ? Colors.blue.shade50
+                              : Colors.grey.shade300,
+                          disabledForegroundColor: isJoined
+                              ? Colors.blue
+                              : Colors.grey.shade600,
                         ),
-                        onPressed: session.isFull ? null : onJoin,
+                        onPressed: (isJoined || session.isFull) ? null : onJoin,
                         child: Text(
-                          session.isFull
-                              ? 'Full'
-                              : 'Join',
+                          isJoined ? 'Joined' : session.isFull ? 'Full' : 'Join',
                           style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13),
+                              fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                       ),
                     ),
@@ -181,6 +159,40 @@ class PartySessionCard extends StatelessWidget {
   }
 }
 
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 3),
+          Text(label,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
+
 class _SportBadge extends StatelessWidget {
   const _SportBadge({required this.sport});
   final String sport;
@@ -188,20 +200,16 @@ class _SportBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFFD6F0E0),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        sport,
-        style: const TextStyle(
-          color: Color(0xFF1C894E),
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      child: Text(sport,
+          style: const TextStyle(
+              color: Color(0xFF1C894E),
+              fontSize: 12,
+              fontWeight: FontWeight.bold)),
     );
   }
 }
@@ -241,11 +249,8 @@ class _InfoRow extends StatelessWidget {
         Icon(icon, size: 13, color: Colors.grey),
         const SizedBox(width: 5),
         Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-                fontSize: 12, color: Colors.black87),
-          ),
+          child: Text(text,
+              style: const TextStyle(fontSize: 12, color: Colors.black87)),
         ),
       ],
     );
