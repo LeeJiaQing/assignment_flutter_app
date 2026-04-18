@@ -30,12 +30,9 @@ class TimeSlot {
   }
 
   SlotStatus effectiveStatus(DateTime now) {
-    if (status == SlotStatus.booked) return SlotStatus.booked;
-    final slotEnd = DateTime(date.year, date.month, date.day, endHour);
-    // Expire once the slot has fully ended.
-    // Example: at 12:00, slots ending at 12:00 are expired, while 12:00–13:00
-    // remains bookable.
+    final slotEnd = DateTime(date.year, date.month, date.day, startHour);
     if (!slotEnd.isAfter(now)) return SlotStatus.expired;
+    if (status == SlotStatus.booked) return SlotStatus.booked;
     return SlotStatus.available;
   }
 }

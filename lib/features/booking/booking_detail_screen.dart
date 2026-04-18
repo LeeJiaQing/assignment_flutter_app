@@ -127,7 +127,7 @@ class BookingDetailScreen extends StatelessWidget {
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'This booking cannot be cancelled as the session time has already passed.',
+                              'This booking cannot be cancelled as the session is already started.',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.black87,
