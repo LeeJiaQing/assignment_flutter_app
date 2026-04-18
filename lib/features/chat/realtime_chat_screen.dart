@@ -11,6 +11,7 @@ class RealtimeChatScreen extends StatelessWidget {
     super.key,
     this.channelId = 'general',
     this.chatTitle = 'Chat',
+    this.readOnly = false,
   });
 
   final String channelId;
@@ -25,15 +26,16 @@ class RealtimeChatScreen extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) =>
       ChatViewModel(channelId: channelId)..loadMessages(),
-      child: _ChatView(chatTitle: chatTitle),
+      child: _ChatView(chatTitle: chatTitle, readOnly: readOnly),
     );
   }
 }
 
 class _ChatView extends StatelessWidget {
-  const _ChatView({required this.chatTitle});
+  const _ChatView({required this.chatTitle, required this.readOnly});
 
   final String chatTitle;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
