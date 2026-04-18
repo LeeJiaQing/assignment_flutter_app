@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/di/app_dependencies.dart';
+import '../../core/repositories/auth_repository.dart';
 import '../party/party_screen.dart';
 import 'viewmodels/profile_view_model.dart';
 import 'widgets/profile_header.dart';
