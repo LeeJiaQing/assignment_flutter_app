@@ -1,16 +1,9 @@
 // lib/features/admin/qr_scanner_screen.dart
-//
-// Admin QR Scanner screen.
-// Uses mobile_scanner for live camera scanning.
-// Falls back to a manual-entry input if the package is unavailable.
-//
-// Add to pubspec.yaml:
-//   mobile_scanner: ^5.2.3
-//
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/services/qr_service.dart';
+import '../../core/supabase/supabase_config.dart';
 
 class QrScannerScreen extends StatefulWidget {
   const QrScannerScreen({super.key});
@@ -22,12 +15,13 @@ class QrScannerScreen extends StatefulWidget {
 class _QrScannerScreenState extends State<QrScannerScreen>
     with WidgetsBindingObserver {
   final MobileScannerController _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
+    detectionSpeed: DetectionSpeed.normal,
   );
   final QrService _qrService = QrService();
 
+  /// True while the result sheet is visible OR while we are validating.
+  /// Prevents multiple detections from piling up.
   bool _isProcessing = false;
-  _ScanResult? _lastResult;
 
   @override
   void initState() {
@@ -45,59 +39,104 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_controller.value.isInitialized) return;
-    if (state == AppLifecycleState.inactive) {
-      _controller.stop();
-    } else if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.inactive) _controller.stop();
+    if (state == AppLifecycleState.resumed && !_isProcessing) {
       _controller.start();
     }
   }
+
+  // ── Camera-based detection ─────────────────────────────────────────────────
 
   Future<void> _onDetect(BarcodeCapture capture) async {
     if (_isProcessing) return;
     final code = capture.barcodes.firstOrNull?.rawValue;
     if (code == null || code.isEmpty) return;
 
+    // Lock processing immediately so re-detection is blocked while the
+    // sheet is visible.
     setState(() => _isProcessing = true);
-    _controller.stop();
+    await _controller.stop();
 
-    try {
-      final booking = await _qrService.validateBookingQr(code);
-      if (!mounted) {
-        _resumeScanning();
-        return;
-      }
-
-      final result = booking != null
-          ? _ScanResult.valid(booking, code)
-          : _ScanResult.invalid(code);
-
-      setState(() {
-        _lastResult = result;
-        _isProcessing = false;
-      });
-      _showResultSheet(context, result);
-    } catch (e) {
-      if (!mounted) {
-        _resumeScanning();
-        return;
-      }
-      setState(() {
-        _lastResult = _ScanResult.invalid(code); // treat any error as invalid
-        _isProcessing = false;
-      });
-      _showResultSheet(context, _lastResult!);
-    }
+    await _validate(code);
   }
 
+  // ── Manual entry ───────────────────────────────────────────────────────────
+
+  void _showManualEntry() {
+    _controller.stop();
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Enter Booking ID'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(
+            hintText: 'Paste or type booking ID',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resumeScanning();
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1C894E),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final id = ctrl.text.trim();
+              Navigator.pop(context);
+              if (id.isEmpty) {
+                _resumeScanning();
+                return;
+              }
+              // Lock processing before validating manually.
+              setState(() => _isProcessing = true);
+              await _validate(id);
+            },
+            child: const Text('Validate'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Core validation ────────────────────────────────────────────────────────
+
+  Future<void> _validate(String code) async {
+    QrValidationResult result;
+    try {
+      result = await _qrService.validateBookingQr(code);
+    } catch (_) {
+      result = const QrValidationResult(status: QrValidationStatus.invalid);
+    }
+
+    if (!mounted) {
+      _resumeScanning();
+      return;
+    }
+
+    _showResultSheet(result);
+  }
+
+  // ── Resume scanning ────────────────────────────────────────────────────────
+
   void _resumeScanning() {
-    setState(() {
-      _lastResult = null;
-      _isProcessing = false;
-    });
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
     _controller.start();
   }
 
-  void _showResultSheet(BuildContext context, _ScanResult result) {
+  // ── Result sheet ───────────────────────────────────────────────────────────
+
+  void _showResultSheet(QrValidationResult result) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -110,11 +149,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         qrService: _qrService,
         onDismiss: () {
           Navigator.pop(context);
-          _resumeScanning();
         },
       ),
-    ).whenComplete(_resumeScanning); // also resumes if user swipes sheet away
+    ).whenComplete(_resumeScanning);
   }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -123,10 +163,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'QR Scanner',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('QR Scanner',
+            style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
             icon: ValueListenableBuilder(
@@ -156,18 +194,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       ),
       body: Stack(
         children: [
-          // Camera view
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-          ),
-
-          // Overlay with scan frame
+          MobileScanner(controller: _controller, onDetect: _onDetect),
           _ScanOverlay(isProcessing: _isProcessing),
-
-          // Bottom hint
           Positioned(
-            bottom: 48,
+            bottom: MediaQuery.of(context).padding.bottom + 24,
             left: 0,
             right: 0,
             child: Column(
@@ -188,67 +218,15 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Manual entry fallback
                 TextButton(
-                  onPressed: () => _showManualEntry(context),
+                  onPressed: _isProcessing ? null : _showManualEntry,
                   child: const Text(
                     'Enter Booking ID manually',
-                    style: TextStyle(
-                        color: Colors.white70, fontSize: 13),
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showManualEntry(BuildContext context) {
-    _controller.stop();
-    final ctrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Enter Booking ID'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(
-            hintText: 'Paste or type booking ID',
-            border: OutlineInputBorder(),
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _resumeScanning();
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1C894E),
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              Navigator.pop(context);
-              final id = ctrl.text.trim();
-              if (id.isEmpty) {
-                _resumeScanning();
-                return;
-              }
-              await _onDetect(
-                BarcodeCapture(
-                  barcodes: [
-                    Barcode(rawValue: id),
-                  ],
-                ),
-              );
-            },
-            child: const Text('Validate'),
           ),
         ],
       ),
@@ -266,7 +244,7 @@ class _ScanOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColorFiltered(
       colorFilter: ColorFilter.mode(
-        Colors.black.withOpacity(0.5),
+        Colors.black.withValues(alpha: 0.5),
         BlendMode.srcOut,
       ),
       child: Stack(
@@ -297,7 +275,7 @@ class _ResultSheet extends StatefulWidget {
     required this.qrService,
     required this.onDismiss,
   });
-  final _ScanResult result;
+  final QrValidationResult result;
   final QrService qrService;
   final VoidCallback onDismiss;
 
@@ -310,10 +288,24 @@ class _ResultSheetState extends State<_ResultSheet> {
   bool _checkedIn = false;
 
   Future<void> _checkIn() async {
-    if (widget.result.bookingId == null) return;
+    final bookingId = widget.result.booking?['id'] as String?;
+    if (bookingId == null) return;
     setState(() => _checkingIn = true);
+
+    await widget.qrService.checkInBooking(bookingId);
+    if (!mounted) return;
+    setState(() {
+      _checkingIn = false;
+      _checkedIn = true;
+    });
+    Navigator.pop(context, true);
+
     try {
-      await widget.qrService.checkInBooking(widget.result.bookingId!);
+      await supabase
+          .from('bookings')
+          .update({'status': 'checked_in'})
+          .eq('id', bookingId)
+          .eq('status', 'confirmed');
       setState(() {
         _checkingIn = false;
         _checkedIn = true;
@@ -337,7 +329,7 @@ class _ResultSheetState extends State<_ResultSheet> {
         left: 24,
         right: 24,
         top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+        bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -358,14 +350,13 @@ class _ResultSheetState extends State<_ResultSheet> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: _statusColor.withOpacity(0.12),
+              color: _statusColor.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(_statusIcon, color: _statusColor, size: 36),
           ),
           const SizedBox(height: 16),
 
-          // Status title
           Text(
             _statusTitle,
             style: TextStyle(
@@ -376,16 +367,16 @@ class _ResultSheetState extends State<_ResultSheet> {
           ),
           const SizedBox(height: 8),
 
-          // Booking details (if valid)
-          if (widget.result.isValid && widget.result.booking != null)
+          // Booking details
+          if (widget.result.booking != null)
             ..._buildBookingDetails(widget.result.booking!),
 
-          if (!widget.result.isValid)
+          // Invalid message
+          if (widget.result.isInvalid)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                widget.result.errorMessage ??
-                    'The scanned QR code is not a valid or active booking.',
+                'The scanned QR code is not a valid or active booking.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.grey, fontSize: 13),
               ),
@@ -393,8 +384,8 @@ class _ResultSheetState extends State<_ResultSheet> {
 
           const SizedBox(height: 24),
 
-          // Check-in button (valid bookings only)
-          if (widget.result.isValid && !_checkedIn)
+          // Check-in button — only for valid (not yet checked-in) bookings
+          if (widget.result.isValid && widget.result.booking?['status'] == 'confirmed' && !_checkedIn)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -405,7 +396,8 @@ class _ResultSheetState extends State<_ResultSheet> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.check_circle_outline),
-                label: Text(_checkingIn ? 'Checking in…' : 'Mark as Checked In'),
+                label: Text(
+                    _checkingIn ? 'Checking in…' : 'Mark as Checked In'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1C894E),
                   foregroundColor: Colors.white,
@@ -417,24 +409,28 @@ class _ResultSheetState extends State<_ResultSheet> {
               ),
             ),
 
-          if (_checkedIn)
+          // Already checked-in confirmation
+          if (widget.result.isAlreadyIn || _checkedIn)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFD6F0E0),
+                color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.blue.shade200),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle,
-                      color: Color(0xFF1C894E), size: 20),
-                  SizedBox(width: 8),
+                  Icon(Icons.how_to_reg_outlined,
+                      color: Colors.blue.shade700, size: 20),
+                  const SizedBox(width: 8),
                   Text(
-                    'Successfully Checked In!',
+                    _checkedIn
+                        ? 'Successfully Checked In!'
+                        : 'Already Checked In',
                     style: TextStyle(
-                        color: Color(0xFF1C894E),
+                        color: Colors.blue.shade700,
                         fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -454,8 +450,9 @@ class _ResultSheetState extends State<_ResultSheet> {
                     borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child:
-              Text(_checkedIn ? 'Scan Next' : 'Scan Again'),
+              child: Text((_checkedIn || widget.result.isAlreadyIn)
+                  ? 'Scan Next'
+                  : 'Scan Again'),
             ),
           ),
         ],
@@ -484,10 +481,13 @@ class _ResultSheetState extends State<_ResultSheet> {
       _DetailRow(label: 'Facility', value: facilityName),
       _DetailRow(label: 'Court', value: courtName),
       _DetailRow(label: 'Date', value: date),
-      _DetailRow(label: 'Time', value: '${fmt(startHour)} – ${fmt(endHour)}'),
+      _DetailRow(
+          label: 'Time', value: '${fmt(startHour)} – ${fmt(endHour)}'),
       _DetailRow(
         label: 'Status',
-        value: status[0].toUpperCase() + status.substring(1),
+        value: status == 'checked_in'
+            ? 'Checked In'
+            : status[0].toUpperCase() + status.substring(1),
         valueColor: status == 'confirmed'
             ? Colors.green
             : status == 'checked_in'
@@ -498,30 +498,27 @@ class _ResultSheetState extends State<_ResultSheet> {
   }
 
   Color get _statusColor {
-    if (widget.result.isError) return Colors.orange.shade700;
-    return widget.result.isValid
-        ? const Color(0xFF1C894E)
-        : Colors.red.shade700;
+    if (widget.result.isAlreadyIn) return Colors.blue.shade700;
+    if (widget.result.isValid) return const Color(0xFF1C894E);
+    return Colors.red.shade700;
   }
 
   IconData get _statusIcon {
-    if (widget.result.isError) return Icons.error_outline;
-    return widget.result.isValid
-        ? Icons.check_circle_outline
-        : Icons.cancel_outlined;
+    if (widget.result.isAlreadyIn) return Icons.how_to_reg_outlined;
+    if (widget.result.isValid) return Icons.check_circle_outline;
+    return Icons.cancel_outlined;
   }
 
   String get _statusTitle {
-    if (widget.result.isError) return 'Scan Error';
-    return widget.result.isValid ? 'Valid Booking' : 'Invalid Booking';
+    if (widget.result.isAlreadyIn) return 'Already Checked In';
+    if (widget.result.isValid) return 'Valid Booking';
+    return 'Invalid Booking';
   }
 }
 
 class _DetailRow extends StatelessWidget {
   const _DetailRow(
-      {required this.label,
-        required this.value,
-        this.valueColor});
+      {required this.label, required this.value, this.valueColor});
   final String label;
   final String value;
   final Color? valueColor;
@@ -535,8 +532,7 @@ class _DetailRow extends StatelessWidget {
           SizedBox(
             width: 80,
             child: Text(label,
-                style: const TextStyle(
-                    fontSize: 13, color: Colors.grey)),
+                style: const TextStyle(fontSize: 13, color: Colors.grey)),
           ),
           Expanded(
             child: Text(
@@ -552,35 +548,4 @@ class _DetailRow extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── Scan result model ──────────────────────────────────────────────────────
-
-class _ScanResult {
-  final bool isValid;
-  final bool isError;
-  final Map<String, dynamic>? booking;
-  final String? bookingId;
-  final String? errorMessage;
-
-  const _ScanResult._({
-    required this.isValid,
-    required this.isError,
-    this.booking,
-    this.bookingId,
-    this.errorMessage,
-  });
-
-  factory _ScanResult.valid(Map<String, dynamic> booking, String id) =>
-      _ScanResult._(
-          isValid: true,
-          isError: false,
-          booking: booking,
-          bookingId: id);
-
-  factory _ScanResult.invalid(String id) =>
-      _ScanResult._(isValid: false, isError: false, bookingId: id);
-
-  factory _ScanResult.error(String message) => _ScanResult._(
-      isValid: false, isError: true, errorMessage: message);
 }

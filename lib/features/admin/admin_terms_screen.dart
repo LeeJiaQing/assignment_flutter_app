@@ -1,9 +1,14 @@
 // lib/features/admin/admin_terms_screen.dart
 //
 // Admin screen to view AND edit the Terms & Conditions.
-// Storage: uses a sentinel row in the `announcements` table with
-// title == '__terms_and_conditions__'. The `updated_at` column is
-// stored in the `data` JSON field as a workaround (no schema change needed).
+//
+// Storage: uses a sentinel row in `announcements` with
+// title == '__terms_and_conditions__'.
+//
+// Because the `announcements` table has no `updated_at` column, the last-
+// updated timestamp is encoded as a metadata prefix in the `body` field:
+//   "__updated:2026-04-18T12:00:00.000Z\n<actual content>"
+// Both the admin view and the member view strip this prefix before rendering.
 import 'package:flutter/material.dart';
 
 import '../../core/supabase/supabase_config.dart';
@@ -17,6 +22,7 @@ class AdminTermsScreen extends StatefulWidget {
 
 class _AdminTermsScreenState extends State<AdminTermsScreen> {
   static const _sentinel = '__terms_and_conditions__';
+  static const _datePfx = '__updated:';
 
   static const _defaultContent =
       '1. Acceptance of Terms\n'
@@ -60,6 +66,29 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
     super.dispose();
   }
 
+  // ── Encode / decode date prefix in body ────────────────────────────────────
+
+  /// Encodes content + timestamp into the stored body string.
+  String _encode(String content, DateTime dt) =>
+      '$_datePfx${dt.toUtc().toIso8601String()}\n$content';
+
+  /// Strips the hidden date prefix from a stored body and returns
+  /// (displayContent, lastUpdated).
+  (String, DateTime?) _decode(String raw) {
+    if (raw.startsWith(_datePfx)) {
+      final newline = raw.indexOf('\n');
+      if (newline != -1) {
+        final dateStr = raw.substring(_datePfx.length, newline);
+        final dt = DateTime.tryParse(dateStr);
+        final content = raw.substring(newline + 1);
+        return (content, dt);
+      }
+    }
+    return (raw, null);
+  }
+
+  // ── Load ───────────────────────────────────────────────────────────────────
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -68,19 +97,16 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
     try {
       final response = await supabase
           .from('announcements')
-          .select('id, body, updated_at, created_at')
+          .select('id, body')
           .eq('title', _sentinel)
           .maybeSingle();
 
       if (response != null) {
         _existingRowId = response['id'] as String?;
-        _controller.text = (response['body'] as String?) ?? _defaultContent;
-        // Use updated_at if available, else created_at
-        final dateStr = (response['updated_at'] as String?) ??
-            (response['created_at'] as String?);
-        if (dateStr != null) {
-          _lastUpdated = DateTime.tryParse(dateStr);
-        }
+        final raw = (response['body'] as String?) ?? _defaultContent;
+        final (content, dt) = _decode(raw);
+        _controller.text = content;
+        _lastUpdated = dt;
       } else {
         _existingRowId = null;
         _controller.text = _defaultContent;
@@ -93,6 +119,8 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
     setState(() => _loading = false);
   }
 
+  // ── Save ───────────────────────────────────────────────────────────────────
+
   Future<void> _save() async {
     setState(() {
       _saving = true;
@@ -101,23 +129,22 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
     try {
       final adminId = supabase.auth.currentUser?.id;
       final now = DateTime.now();
-      final nowIso = now.toUtc().toIso8601String();
+      final encoded = _encode(_controller.text, now);
 
       if (_existingRowId != null) {
-        await supabase.from('announcements').update({
-          'body': _controller.text,
-          'updated_at': nowIso,
-        }).eq('id', _existingRowId!);
+        await supabase
+            .from('announcements')
+            .update({'body': encoded})
+            .eq('id', _existingRowId!);
       } else {
         final result = await supabase
             .from('announcements')
             .insert({
           'title': _sentinel,
-          'body': _controller.text,
+          'body': encoded,
           'target_type': 'none',
           'created_by': adminId,
           'notification_sent': true,
-          'updated_at': nowIso,
         })
             .select('id')
             .single();
@@ -202,7 +229,6 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
         children: [
-          // Admin banner
           Container(
             color: const Color(0xFFD6F0E0),
             width: double.infinity,
@@ -225,7 +251,6 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
               ],
             ),
           ),
-
           if (_errorMessage != null)
             Container(
               color: Colors.red.shade50,
@@ -245,7 +270,6 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
                 ],
               ),
             ),
-
           Expanded(
             child: _editing
                 ? Padding(
@@ -257,8 +281,7 @@ class _AdminTermsScreenState extends State<AdminTermsScreen> {
                 textAlignVertical: TextAlignVertical.top,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
-                      borderRadius:
-                      BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12)),
                   hintText: 'Enter terms content\u2026',
                   contentPadding: const EdgeInsets.all(14),
                 ),
@@ -309,8 +332,8 @@ class _ReadOnlyView extends StatelessWidget {
       }
     }
     if (currentTitle != null) {
-      sections.add(
-          _Section(title: currentTitle, body: buffer.toString().trim()));
+      sections.add(_Section(
+          title: currentTitle, body: buffer.toString().trim()));
     }
 
     if (sections.isEmpty) {
@@ -341,8 +364,7 @@ class _ReadOnlyView extends StatelessWidget {
             child: Center(
               child: Text(
                 'Last updated: ${lastUpdated ?? 'N/A'}',
-                style:
-                const TextStyle(color: Colors.grey, fontSize: 12),
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ),
           );
@@ -361,7 +383,9 @@ class _ReadOnlyView extends StatelessWidget {
             ),
             Text(s.body,
                 style: const TextStyle(
-                    fontSize: 13, color: Colors.black87, height: 1.6)),
+                    fontSize: 13,
+                    color: Colors.black87,
+                    height: 1.6)),
           ],
         );
       },

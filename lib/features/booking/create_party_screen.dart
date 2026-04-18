@@ -1,6 +1,5 @@
 // lib/features/booking/create_party_screen.dart
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../core/repositories/booking_repository.dart';
 import '../../core/repositories/facility_repository.dart';
@@ -8,7 +7,6 @@ import '../../core/services/booking_service.dart';
 import '../../core/services/navigation_service.dart';
 import '../../core/supabase/supabase_config.dart';
 import '../../models/booking_model.dart';
-import '../home/viewmodels/navigation_view_model.dart';
 
 class CreatePartyScreen extends StatefulWidget {
   const CreatePartyScreen({super.key});
@@ -52,10 +50,21 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
       final all = await service.fetchMyBookingsWithFacilities();
       final now = DateTime.now();
 
-      // Only confirmed bookings whose start time is in the future.
+      // Fetch booking IDs already used for a party session by this user.
+      final usedResponse = await supabase
+          .from('party_sessions')
+          .select('booking_id')
+          .eq('host_id', supabase.auth.currentUser?.id ?? '');
+      final usedBookingIds = (usedResponse as List<dynamic>)
+          .map((r) => r['booking_id'] as String?)
+          .whereType<String>()
+          .toSet();
+
+      // Only confirmed bookings in the future that haven't been used for a party.
       final eligible = all.where((bwf) {
         final b = bwf.booking;
         if (b.status != 'confirmed') return false;
+        if (usedBookingIds.contains(b.id)) return false;
         final slotStart = DateTime(
           b.date.year, b.date.month, b.date.day, b.startHour,
         );
@@ -136,7 +145,7 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                       boxShadow: [
                         BoxShadow(
                           color:
-                          Colors.black.withOpacity(0.04),
+                          Colors.black.withValues(alpha: 0.04),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -312,24 +321,9 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 24, vertical: 12),
               ),
-              onPressed: () async {
-                // Pop every route until we're back at MainNavigation (the first route).
-                NavigationService.instance.popToRoot();
-
-                // Give the navigator a frame to settle, then switch to Facility tab.
-                await Future.delayed(const Duration(milliseconds: 100));
-
-                final navCtx =
-                    NavigationService.instance.navigator?.context;
-                if (navCtx != null && navCtx.mounted) {
-                  try {
-                    // ignore: use_build_context_synchronously
-                    Provider.of<NavigationViewModel>(navCtx, listen: false)
-                        .setTab(1); // index 1 = Facility for both roles
-                  } catch (_) {
-                    // NavigationViewModel not found — already on home, that's fine.
-                  }
-                }
+              onPressed: () {
+                // Switch to Facility tab (index 1) while keeping the bottom nav bar.
+                NavigationService.instance.popToRootAndSwitchTab(1);
               },
               child: const Text('Book a Court'),
             ),
