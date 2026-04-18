@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/di/app_dependencies.dart';
 import '../../core/repositories/auth_repository.dart';
+import '../admin/admin_feedback_screen.dart';
 import '../party/party_screen.dart';
 import 'viewmodels/profile_view_model.dart';
 import 'widgets/profile_header.dart';
@@ -125,12 +126,27 @@ class _ProfileViewState extends State<_ProfileView> {
           _MenuSection(
             title: 'Support',
             children: [
-              ProfileMenuItem(
-                icon: Icons.feedback_outlined,
-                label: 'Send Feedback',
-                onTap: () =>
-                    Navigator.pushNamed(context, '/feedback'),
-              ),
+              // Admin: view feedback inbox. User: send feedback.
+              if (_isAdmin)
+                ProfileMenuItem(
+                  icon: Icons.feedback_outlined,
+                  label: 'Feedback',
+                  trailing: const Icon(Icons.inbox_outlined,
+                      color: Color(0xFF1C894E), size: 18),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminFeedbackScreen(),
+                    ),
+                  ),
+                )
+              else
+                ProfileMenuItem(
+                  icon: Icons.feedback_outlined,
+                  label: 'Send Feedback',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/feedback'),
+                ),
               ProfileMenuItem(
                 icon: Icons.description_outlined,
                 label: 'Terms & Conditions',
@@ -138,9 +154,7 @@ class _ProfileViewState extends State<_ProfileView> {
                 // members see the read-only version.
                 onTap: () => Navigator.pushNamed(
                   context,
-                  _isAdmin
-                      ? '/admin/terms/edit'
-                      : '/terms',
+                  _isAdmin ? '/admin/terms/edit' : '/terms',
                 ),
                 trailing: _isAdmin
                     ? const Icon(Icons.edit_outlined,

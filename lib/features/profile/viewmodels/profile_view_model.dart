@@ -1,5 +1,8 @@
 // lib/features/profile/viewmodels/profile_view_model.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/repositories/auth_repository.dart';
 import '../../../core/supabase/supabase_config.dart';
@@ -57,23 +60,66 @@ class ProfileViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Upload avatar image to Supabase Storage ────────────────────────────────
+  /// Uploads [imageFile] to the 'avatars' bucket and returns the public URL.
+  /// Returns null on failure.
+  Future<String?> uploadAvatar(File imageFile) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return null;
+
+      // Use a unique filename: avatars/<userId>/avatar.jpg
+      // Overwriting the same path keeps storage tidy.
+      final ext = imageFile.path.split('.').last.toLowerCase();
+      final filePath = '$userId/avatar.$ext';
+
+      final bytes = await imageFile.readAsBytes();
+
+      await supabase.storage
+          .from('avatars')
+          .uploadBinary(
+        filePath,
+        bytes,
+        fileOptions: const FileOptions(
+          upsert: true,           // overwrite if exists
+          contentType: 'image/jpeg',
+        ),
+      );
+
+      // Get the public URL
+      final publicUrl =
+      supabase.storage.from('avatars').getPublicUrl(filePath);
+
+      // Append a cache-buster so the updated image loads fresh
+      return '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
   Future<bool> updateProfile({
     required String fullName,
     String? avatarUrl,
   }) async {
+    _status = ProfileStatus.loading;
+    notifyListeners();
+
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return false;
 
       await supabase.from('profiles').update({
         'full_name': fullName,
-        if (avatarUrl != null) 'avatar_url': avatarUrl,
+        'avatar_url': avatarUrl, // null clears the avatar
       }).eq('id', userId);
 
       await loadProfile();
       return true;
     } catch (e) {
       _errorMessage = e.toString();
+      _status = ProfileStatus.error;
       notifyListeners();
       return false;
     }

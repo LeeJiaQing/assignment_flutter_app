@@ -2,11 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/repositories/auth_repository.dart';
-import '../../core/services/navigation_service.dart';
+import '../../core/di/app_dependencies.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../admin/admin_party_screen.dart';
 import '../admin/qr_scanner_screen.dart';
+import '../admin/admin_dm_list_screen.dart';
 import '../chat/realtime_chat_screen.dart';
 import '../facility/facility_screen.dart';
 import '../home/home_screen.dart';
@@ -24,16 +24,14 @@ class MainNavigation extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) {
-            final vm = NavigationViewModel(authRepository: AuthRepository())
-              ..initialize();
-            // Register with NavigationService so CreatePartyScreen can switch tabs.
-            NavigationService.instance.navigationViewModel = vm;
-            return vm;
-          },
+          create: (_) =>
+          NavigationViewModel(
+            authRepository: context.read<AppDependencies>().authRepository,
+          )..initialize(),
         ),
         ChangeNotifierProvider(
-          create: (_) => NotificationViewModel()..loadNotifications(),
+          create: (_) =>
+          NotificationViewModel()..loadNotifications(),
         ),
       ],
       child: const _MainNavigationView(),
@@ -62,7 +60,7 @@ class _MainNavigationView extends StatelessWidget {
       const AdminDashboardScreen(),
       const FacilityScreen(),
       const AdminPartyScreen(),
-      const RealtimeChatScreen(readOnly: true),
+      const AdminDmListScreen(),   // ← Admin sees DM list instead of general chat
       const QrScannerScreen(),
       const ProfileScreen(),
     ]
@@ -78,6 +76,7 @@ class _MainNavigationView extends StatelessWidget {
       appBar: AppBar(
         title: const Text('CourtNow'),
         actions: [
+          // ── Notification bell with unread badge ──────────────────────
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -91,8 +90,11 @@ class _MainNavigationView extends StatelessWidget {
                       builder: (_) => const NotificationScreen(),
                     ),
                   );
+                  // Reload badge count after returning
                   if (context.mounted) {
-                    context.read<NotificationViewModel>().loadNotifications();
+                    context
+                        .read<NotificationViewModel>()
+                        .loadNotifications();
                   }
                 },
               ),
