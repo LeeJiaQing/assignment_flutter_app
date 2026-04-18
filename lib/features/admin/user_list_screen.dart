@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/supabase/supabase_config.dart';
+import '../chat/realtime_chat_screen.dart';
 import '../../models/user_model.dart';
 import 'user_details_screen.dart';
 
@@ -92,6 +93,15 @@ class _UserTile extends StatelessWidget {
   const _UserTile({required this.user});
   final UserProfile user;
 
+  String _channelIdForUser(UserProfile user) {
+    final me = supabase.auth.currentUser?.id;
+    if (me == null || me == user.id) {
+      return 'dm_${user.id}';
+    }
+    final pair = [me, user.id]..sort();
+    return 'dm_${pair[0]}_${pair[1]}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListTile(
@@ -112,6 +122,19 @@ class _UserTile extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          IconButton(
+            tooltip: 'Chat',
+            icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF1C894E)),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RealtimeChatScreen(
+                  channelId: _channelIdForUser(user),
+                  chatTitle: 'Chat: ${user.fullName}',
+                ),
+              ),
+            ),
+          ),
           if (user.isAdmin)
             Container(
               padding: const EdgeInsets.symmetric(
