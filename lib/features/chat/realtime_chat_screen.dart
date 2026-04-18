@@ -80,6 +80,31 @@ class _ChatView extends StatelessWidget {
           Expanded(
             child: vm.isLoading
                 ? const Center(child: CircularProgressIndicator())
+                : vm.errorMessage != null
+                ? Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        color: Colors.grey, size: 44),
+                    const SizedBox(height: 10),
+                    Text(
+                      vm.errorMessage!,
+                      style: const TextStyle(color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () =>
+                          context.read<ChatViewModel>().loadMessages(),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            )
                 : vm.messages.isEmpty
                 ? const Center(
               child: Text('No messages yet.',
