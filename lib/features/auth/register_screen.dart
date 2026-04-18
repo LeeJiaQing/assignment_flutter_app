@@ -17,13 +17,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
   bool _obscurePassword = true;
+  bool _hasInteractedWithPassword = false;
+
+  bool get _showPasswordRequirements =>
+      _passwordFocusNode.hasFocus || _hasInteractedWithPassword;
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordFocusNode.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -93,9 +107,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _emailController,
                       hint: 'Enter your email',
                       keyboardType: TextInputType.emailAddress,
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Email is required'
-                          : null,
+                      validator: _validateEmail,
                     ),
                     const SizedBox(height: 16),
 
@@ -103,7 +115,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _passwordController,
+                      focusNode: _passwordFocusNode,
                       obscureText: _obscurePassword,
+                      onChanged: (_) {
+                        if (!_hasInteractedWithPassword) {
+                          setState(() => _hasInteractedWithPassword = true);
+                        } else {
+                          setState(() {});
+                        }
+                      },
                       decoration: _inputDecoration(
                         hint: 'Enter your password',
                         suffix: IconButton(
@@ -118,11 +138,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Password is required';
-                        if (v.length < 6) return 'Minimum 6 characters';
-                        return null;
+                        return _validatePassword(v);
                       },
                     ),
+                    if (_showPasswordRequirements) ...[
+                      const SizedBox(height: 8),
+                      ..._passwordRequirementMessages(_passwordController.text)
+                          .map(
+                        (rule) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            '• $rule',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.red.shade700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
 
                     if (vm.errorMessage != null) ...[
                       const SizedBox(height: 16),
@@ -247,10 +281,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit(BuildContext context, AuthViewModel vm) async {
     if (!_formKey.currentState!.validate()) return;
+    final email = _emailController.text.trim();
+
+    final alreadyExists = await vm.doesEmailExist(email);
+    if (alreadyExists) {
+      if (!context.mounted) return;
+      final goToSignIn = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Email already registered'),
+          content: const Text(
+            'This email has already signed up before. '
+            'Please sign in or use a different email.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Use Different Email'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Go to Sign In'),
+            ),
+          ],
+        ),
+      );
+
+      if (goToSignIn == true && context.mounted) {
+        Navigator.pop(context);
+      }
+      return;
+    }
+
     await vm.signUp(
-      email: _emailController.text.trim(),
+      email: email,
       password: _passwordController.text,
       fullName: _nameController.text.trim(),
     );
+  }
+
+  String? _validateEmail(String? value) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) return 'Email is required';
+    if (!email.contains('@')) return 'Email must contain "@"';
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    final requirements = _passwordRequirementMessages(value ?? '');
+    if (requirements.isNotEmpty) {
+      return requirements.first;
+    }
+    return null;
+  }
+
+  List<String> _passwordRequirementMessages(String password) {
+    final missing = <String>[];
+    if (password.isEmpty) missing.add('Password is required');
+    if (password.length < 8) missing.add('At least 8 characters');
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      missing.add('At least 1 uppercase letter');
+    }
+    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>\[\]\\/_\-+=~`]').hasMatch(password)) {
+      missing.add('At least 1 special character');
+    }
+    return missing;
   }
 }

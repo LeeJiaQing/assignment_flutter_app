@@ -10,22 +10,26 @@ class RealtimeChatScreen extends StatelessWidget {
   const RealtimeChatScreen({
     super.key,
     this.channelId = 'general',
+    this.chatTitle = 'Chat',
   });
 
   final String channelId;
+  final String chatTitle;
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) =>
       ChatViewModel(channelId: channelId)..loadMessages(),
-      child: const _ChatView(),
+      child: _ChatView(chatTitle: chatTitle),
     );
   }
 }
 
 class _ChatView extends StatelessWidget {
-  const _ChatView();
+  const _ChatView({required this.chatTitle});
+
+  final String chatTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +38,7 @@ class _ChatView extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF4FAF6),
       appBar: AppBar(
-        title: const Text('Chat'),
+        title: Text(chatTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
