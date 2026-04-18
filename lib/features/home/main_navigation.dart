@@ -59,7 +59,7 @@ class _MainNavigationView extends StatelessWidget {
       AdminDashboardScreen(),
       FacilityScreen(),
       AdminPartyScreen(),
-      RealtimeChatScreen(readOnly: true,),
+      RealtimeChatScreen(),
       QrScannerScreen(),
       ProfileScreen(),
     ]
