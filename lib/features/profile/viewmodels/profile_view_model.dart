@@ -68,10 +68,10 @@ class ProfileViewModel extends ChangeNotifier {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return null;
 
-      // Use a unique filename: avatars/<userId>/avatar.jpg
-      // Overwriting the same path keeps storage tidy.
       final ext = imageFile.path.split('.').last.toLowerCase();
-      final filePath = '$userId/avatar.$ext';
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filePath = '$userId/avatar_$timestamp.$ext';
+      final contentExt = ext == 'jpg' ? 'jpeg' : ext;
 
       final bytes = await imageFile.readAsBytes();
 
@@ -80,9 +80,9 @@ class ProfileViewModel extends ChangeNotifier {
           .uploadBinary(
         filePath,
         bytes,
-        fileOptions: const FileOptions(
-          upsert: true,           // overwrite if exists
-          contentType: 'image/jpeg',
+        fileOptions: FileOptions(
+          upsert: false,
+          contentType: 'image/$contentExt',
         ),
       );
 
@@ -93,7 +93,7 @@ class ProfileViewModel extends ChangeNotifier {
       // Append a cache-buster so the updated image loads fresh
       return '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = 'Avatar upload failed: $e';
       notifyListeners();
       return null;
     }
