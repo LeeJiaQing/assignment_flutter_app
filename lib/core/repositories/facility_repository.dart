@@ -1,4 +1,6 @@
 // lib/core/repositories/facility_repository.dart
+import 'dart:typed_data';
+
 import '../../models/facility_model.dart';
 import '../supabase/supabase_config.dart';
 
@@ -92,5 +94,21 @@ class FacilityRepository {
   /// Delete a facility.
   Future<void> deleteFacility(String id) async {
     await supabase.from('facilities').delete().eq('id', id);
+  }
+
+  /// Uploads a facility image and returns the stored object path.
+  Future<String> uploadFacilityImage({
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    final path = 'uploads/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+
+    await supabase.storage.from(_bucket).uploadBinary(
+      path,
+      bytes,
+      fileOptions: const FileOptions(upsert: true),
+    );
+
+    return path;
   }
 }
