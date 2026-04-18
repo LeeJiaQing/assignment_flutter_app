@@ -37,7 +37,8 @@ class ChatMessage {
     return ChatMessage(
       id: json['id'] as String,
       senderId: json['sender_id'] as String,
-      senderName: profileName ?? 'User',
+      senderName:
+          (json['sender_name'] as String?) ?? profileName ?? 'User',
       content: json['content'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
@@ -87,23 +88,68 @@ class ChatViewModel extends ChangeNotifier {
 
   Future<void> _fetchMessages() async {
     try {
-      // Join profiles on sender_id so we always get the real display name.
-      final response = await supabase
-          .from('messages')
-          .select('id, sender_id, content, created_at, profiles(full_name)')
-          .eq('channel_id', channelId)
-          .order('created_at', ascending: true);
+      List<ChatMessage> fetched;
+      try {
+        // Join profiles on sender_id so we always get the real display name.
+        final response = await supabase
+            .from('messages')
+            .select('id, sender_id, content, created_at, profiles(full_name)')
+            .eq('channel_id', channelId)
+            .order('created_at', ascending: true);
 
-      final fetched = (response as List<dynamic>)
-          .map((json) =>
-          ChatMessage.fromJson(json as Map<String, dynamic>))
-          .toList();
+        fetched = (response as List<dynamic>)
+            .map((json) =>
+                ChatMessage.fromJson(json as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        // Fallback if relation/embed is unavailable in this DB schema.
+        final response = await supabase
+            .from('messages')
+            .select('id, sender_id, content, created_at')
+            .eq('channel_id', channelId)
+            .order('created_at', ascending: true);
+
+        final rows = (response as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        final senderIds = rows
+            .map((r) => r['sender_id'] as String)
+            .toSet()
+            .toList();
+
+        final Map<String, String> senderNames = {};
+        if (senderIds.isNotEmpty) {
+          try {
+            final profileRows = await supabase
+                .from('profiles')
+                .select('id, full_name')
+                .inFilter('id', senderIds);
+            for (final p in (profileRows as List<dynamic>)
+                .cast<Map<String, dynamic>>()) {
+              senderNames[p['id'] as String] =
+                  (p['full_name'] as String?) ?? 'User';
+            }
+          } catch (_) {
+            // Ignore name lookup errors; messages are still shown.
+          }
+        }
+
+        fetched = rows
+            .map((row) => ChatMessage.fromJson({
+                  ...row,
+                  'sender_name': senderNames[row['sender_id']] ??
+                      (row['sender_id'] == supabase.auth.currentUser?.id
+                          ? 'You'
+                          : 'User'),
+                }))
+            .toList();
+      }
 
       // Rebuild from server, dropping any optimistic placeholders.
       _messages
         ..removeWhere((m) => m.id.startsWith('optimistic_'))
         ..clear();
       _messages.addAll(fetched);
+      _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString();
     }

@@ -7,7 +7,7 @@ import '../admin/admin_dashboard_screen.dart';
 import '../admin/admin_party_screen.dart';
 import '../admin/qr_scanner_screen.dart';
 import '../admin/admin_dm_list_screen.dart';
-import '../chat/realtime_chat_screen.dart';
+import '../chat/user_admin_dm_screen.dart';
 import '../facility/facility_screen.dart';
 import '../home/home_screen.dart';
 import '../notification/notification_screen.dart';
@@ -68,7 +68,7 @@ class _MainNavigationView extends StatelessWidget {
       HomePage(),
       FacilityScreen(),
       PartyScreen(),
-      RealtimeChatScreen(),
+      UserAdminDmScreen(),
       ProfileScreen(),
     ];
 
