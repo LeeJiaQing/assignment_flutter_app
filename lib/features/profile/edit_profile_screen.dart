@@ -17,6 +17,9 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
+  bool _hasEditedName = false;
+  bool _hasTouchedAvatar = false;
+  bool _isPrefillingName = false;
   bool _initialised = false;
 
   // Image state
@@ -28,16 +31,45 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _picker = ImagePicker();
 
   @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController()
+      ..addListener(() {
+        if (!_isPrefillingName) {
+          _hasEditedName = true;
+        }
+      });
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
   }
 
   void _init(ProfileViewModel vm) {
-    if (_initialised) return;
-    _nameController = TextEditingController(text: vm.profile?.fullName ?? '');
-    _existingAvatarUrl = vm.profile?.avatarUrl;
-    _initialised = true;
+    if (!_initialised) {
+      _isPrefillingName = true;
+      _nameController.text = vm.profile?.fullName ?? '';
+      _isPrefillingName = false;
+      _existingAvatarUrl = vm.profile?.avatarUrl;
+      _initialised = true;
+      return;
+    }
+
+    final profile = vm.profile;
+    if (profile == null) return;
+
+    if (!_hasEditedName && _nameController.text.trim().isEmpty) {
+      _isPrefillingName = true;
+      _nameController.text = profile.fullName;
+      _isPrefillingName = false;
+    }
+
+    if (!_hasTouchedAvatar &&
+        (_existingAvatarUrl == null || _existingAvatarUrl!.isEmpty)) {
+      _existingAvatarUrl = profile.avatarUrl;
+    }
   }
 
   // ── Pick image from gallery ────────────────────────────────────────────────
@@ -52,6 +84,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() {
       _pickedImage = File(result.path);
       _removeAvatar = false;
+      _hasTouchedAvatar = true;
     });
   }
 
@@ -59,6 +92,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() {
       _pickedImage = null;
       _removeAvatar = true;
+      _hasTouchedAvatar = true;
     });
   }
 
@@ -90,8 +124,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     setState(() => _uploadingImage = false);
 
+    final submittedName = _nameController.text.trim();
+    final fullNameToSave =
+        submittedName.isEmpty ? (vm.profile?.fullName ?? '') : submittedName;
+
     final success = await vm.updateProfile(
-      fullName: _nameController.text.trim(),
+      fullName: fullNameToSave,
       avatarUrl: finalAvatarUrl,
     );
 
@@ -162,8 +200,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   hint: 'Enter your full name',
                   icon: Icons.person_outline,
                 ),
-                validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
 
               const SizedBox(height: 32),
