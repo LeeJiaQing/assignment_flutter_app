@@ -155,6 +155,13 @@ class _ProfileViewState extends State<_ProfileView> {
                   onTap: () =>
                       Navigator.pushNamed(context, '/feedback'),
                 ),
+              if (_isAdmin)
+                ProfileMenuItem(
+                  icon: Icons.manage_accounts_outlined,
+                  label: 'Manage Users',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/admin/users'),
+                ),
               ProfileMenuItem(
                 icon: Icons.description_outlined,
                 label: 'Terms & Conditions',
