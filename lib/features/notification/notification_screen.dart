@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/notification_model.dart';
+import 'notification_detail_screen.dart';
 import 'viewmodels/notification_view_model.dart';
 
 class NotificationScreen extends StatelessWidget {
@@ -116,9 +117,20 @@ class _NotificationView extends StatelessWidget {
             itemCount: vm.notifications.length,
             itemBuilder: (_, i) => _NotificationTile(
               item: vm.notifications[i],
-              onTap: () => context
-                  .read<NotificationViewModel>()
-                  .markRead(vm.notifications[i].id),
+              onTap: () async {
+                final item = vm.notifications[i];
+                await context
+                    .read<NotificationViewModel>()
+                    .markRead(item.id);
+                if (!context.mounted) return;
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => NotificationDetailScreen(
+                      item: item.copyWith(isRead: true),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ),
