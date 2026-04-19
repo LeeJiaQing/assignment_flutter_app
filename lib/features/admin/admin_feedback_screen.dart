@@ -88,11 +88,6 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
               (p['full_name'] as String?) ?? 'Unknown User';
         }
 
-        entries.removeWhere((entry) {
-          if (entry.userId == null) return false;
-          return roleMap[entry.userId!]?.toLowerCase() == 'admin';
-        });
-
         for (final entry in entries) {
           if (entry.userId != null) {
             entry.userName = nameMap[entry.userId!] ?? 'Unknown User';
