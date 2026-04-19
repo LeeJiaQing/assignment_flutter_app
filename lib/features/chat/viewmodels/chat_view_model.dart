@@ -1,9 +1,11 @@
 // lib/features/chat/viewmodels/chat_view_model.dart
 //
 // Strategy:
+//  • Static in-memory cache keyed by channelId — messages persist even if
+//    the widget is disposed and re-created (tab switching, screen close/reopen).
 //  • Optimistic insert: sender sees message instantly.
 //  • After every send: reload from server to confirm with real row + senderName.
-//  • 5-second poll keeps all participants in sync (no Realtime dependency).
+//  • 4-second poll keeps all participants in sync (no Realtime dependency).
 //  • Real-time subscription attempted as bonus; ignored if unavailable.
 import 'dart:async';
 
@@ -30,8 +32,7 @@ class ChatMessage {
   bool get isMe => senderId == supabase.auth.currentUser?.id;
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
-    // The join is: messages join profiles on sender_id = profiles.id
-    // Supabase returns the joined row as json['profiles'] => {'full_name': '...'}
+    // profiles join on sender_id -> profiles.id
     final profileName =
     (json['profiles'] as Map<String, dynamic>?)?['full_name'] as String?;
     return ChatMessage(
@@ -48,6 +49,9 @@ class ChatViewModel extends ChangeNotifier {
   ChatViewModel({required this.channelId});
 
   final String channelId;
+
+  // ── Static cache so messages survive screen close/reopen ──────────────────
+  static final Map<String, List<ChatMessage>> _cache = {};
 
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
@@ -70,8 +74,13 @@ class ChatViewModel extends ChangeNotifier {
   // ── Initial load ───────────────────────────────────────────────────────────
 
   Future<void> loadMessages() async {
+    // Restore from cache immediately so previous messages show at once.
+    if (_cache.containsKey(channelId)) {
+      _messages.addAll(_cache[channelId]!);
+      notifyListeners();
+    }
+
     _isLoading = true;
-    _errorMessage = null;
     notifyListeners();
 
     await _fetchMessages();
@@ -87,7 +96,6 @@ class ChatViewModel extends ChangeNotifier {
 
   Future<void> _fetchMessages() async {
     try {
-      // Join profiles on sender_id so we always get the real display name.
       final response = await supabase
           .from('messages')
           .select('id, sender_id, content, created_at, profiles(full_name)')
@@ -95,8 +103,7 @@ class ChatViewModel extends ChangeNotifier {
           .order('created_at', ascending: true);
 
       final fetched = (response as List<dynamic>)
-          .map((json) =>
-          ChatMessage.fromJson(json as Map<String, dynamic>))
+          .map((json) => ChatMessage.fromJson(json as Map<String, dynamic>))
           .toList();
 
       // Rebuild from server, dropping any optimistic placeholders.
@@ -104,6 +111,9 @@ class ChatViewModel extends ChangeNotifier {
         ..removeWhere((m) => m.id.startsWith('optimistic_'))
         ..clear();
       _messages.addAll(fetched);
+
+      // Update cache.
+      _cache[channelId] = List.of(_messages);
     } catch (e) {
       _errorMessage = e.toString();
     }
@@ -160,15 +170,16 @@ class ChatViewModel extends ChangeNotifier {
     }
 
     // Optimistic insert so the sender sees the message immediately.
-    final optimisticId =
-        'optimistic_${DateTime.now().millisecondsSinceEpoch}';
-    _messages.add(ChatMessage(
+    final optimisticId = 'optimistic_${DateTime.now().millisecondsSinceEpoch}';
+    final optimistic = ChatMessage(
       id: optimisticId,
       senderId: user.id,
       senderName: user.userMetadata?['full_name'] as String? ?? 'You',
       content: trimmed,
       createdAt: DateTime.now(),
-    ));
+    );
+    _messages.add(optimistic);
+    _cache[channelId] = List.of(_messages);
     notifyListeners();
 
     try {
@@ -177,11 +188,12 @@ class ChatViewModel extends ChangeNotifier {
         'sender_id': user.id,
         'content': trimmed,
       });
-      // Replace optimistic row with the real server row (has proper ID + name).
+      // Replace optimistic row with the real server row.
       await _fetchMessages();
       notifyListeners();
     } catch (e) {
       _messages.removeWhere((m) => m.id == optimisticId);
+      _cache[channelId] = List.of(_messages);
       _errorMessage = e.toString();
       notifyListeners();
     }

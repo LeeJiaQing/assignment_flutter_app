@@ -18,6 +18,7 @@ class PartySession {
   final int currentPlayers;
   final String sport;
   final String? notes;
+  final bool isEdited;
 
   const PartySession({
     required this.id,
@@ -32,6 +33,7 @@ class PartySession {
     required this.currentPlayers,
     required this.sport,
     this.notes,
+    this.isEdited = false,
   });
 
   bool get isFull => currentPlayers >= maxPlayers;
@@ -52,6 +54,8 @@ class PartySession {
     currentPlayers: json['current_players'] as int,
     sport: json['sport'] as String,
     notes: json['notes'] as String?,
+    // is_edited column: defaults false if column doesn't exist
+    isEdited: (json['is_edited'] as bool?) ?? false,
   );
 }
 
@@ -60,7 +64,6 @@ class PartyViewModel extends ChangeNotifier {
   List<PartySession> _sessions = [];
   String? _errorMessage;
 
-  /// Set of session IDs the current user has already joined (as a member, not host).
   final Set<String> _joinedSessionIds = {};
   bool _joinedLoaded = false;
 
@@ -71,8 +74,6 @@ class PartyViewModel extends ChangeNotifier {
 
   String? get currentUserId => supabase.auth.currentUser?.id;
 
-  /// Returns true if the current user has already joined the given session
-  /// (either as host or as a member).
   bool isJoined(String sessionId) {
     final uid = currentUserId;
     if (uid == null) return false;
@@ -81,11 +82,8 @@ class PartyViewModel extends ChangeNotifier {
     return _joinedSessionIds.contains(sessionId);
   }
 
-  /// All sessions — ALL shown on the public party list.
-  /// The host's own session is visible but with a "Hosting" badge and no join button.
   List<PartySession> get allSessions => _sessions;
 
-  /// Sessions the current user is either hosting or has joined.
   List<PartySession> get mySessions {
     final uid = currentUserId;
     if (uid == null) return [];
@@ -119,7 +117,6 @@ class PartyViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
-    // Load joined IDs in parallel after sessions are ready.
     await _loadJoinedSessionIds();
   }
 
@@ -157,7 +154,6 @@ class PartyViewModel extends ChangeNotifier {
         return false;
       }
 
-      // Check if already a member.
       final existing = await supabase
           .from('party_members')
           .select('id')
@@ -176,7 +172,6 @@ class PartyViewModel extends ChangeNotifier {
         'user_id': userId,
       });
 
-      // Increment player count using RPC if available, otherwise manual update.
       try {
         await supabase.rpc('increment_party_players', params: {
           'session_id_input': sessionId,

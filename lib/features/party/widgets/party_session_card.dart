@@ -74,6 +74,12 @@ class PartySessionCard extends StatelessWidget {
                       icon: Icons.check_circle_outline,
                       color: Colors.blue,
                     ),
+                  if (session.isEdited)
+                    _StatusBadge(
+                      label: 'Edited',
+                      icon: Icons.edit_outlined,
+                      color: Colors.orange,
+                    ),
                   const Spacer(),
                   _PlayersBadge(session: session),
                 ],

@@ -7,9 +7,9 @@ final _uuidRegex = RegExp(
 );
 
 enum QrValidationStatus {
-  valid,        // confirmed booking — can check in
-  alreadyIn,   // already checked_in — show info, no action
-  invalid,     // cancelled, not found, or not a UUID
+  valid,      // confirmed booking — can check in
+  alreadyIn,  // already checked_in — show info, no action
+  invalid,    // cancelled, not found, or not a UUID
 }
 
 class QrValidationResult {
@@ -47,30 +47,10 @@ class QrService {
         return const QrValidationResult(status: QrValidationStatus.invalid);
       }
 
-      final bookingDate = DateTime.parse(response['date']);
-      final now = DateTime.now();
-
-      if (bookingDate.year != now.year ||
-          bookingDate.month != now.month ||
-          bookingDate.day != now.day) {
-        return const QrValidationResult(status: QrValidationStatus.invalid);
-      }
-
-      if (response == null) {
-        return const QrValidationResult(status: QrValidationStatus.invalid);
-      }
-
       final bookingStatus = response['status'] as String? ?? '';
 
       if (bookingStatus == 'cancelled') {
         return const QrValidationResult(status: QrValidationStatus.invalid);
-      }
-
-      if (bookingStatus == 'confirmed') {
-        return QrValidationResult(
-          status: QrValidationStatus.valid,
-          booking: response as Map<String, dynamic>,
-        );
       }
 
       if (bookingStatus == 'checked_in') {
@@ -80,32 +60,59 @@ class QrService {
         );
       }
 
-      // everything else is invalid
-      return const QrValidationResult(status: QrValidationStatus.invalid);
-
+      // confirmed / pending / completed → valid, can check in
+      return QrValidationResult(
+        status: QrValidationStatus.valid,
+        booking: response as Map<String, dynamic>,
+      );
     } catch (_) {
       return const QrValidationResult(status: QrValidationStatus.invalid);
     }
   }
 
-  /// Marks a booking as checked-in.
+  /// Marks a booking as checked-in and returns the updated booking.
+  /// Throws an exception if the update fails or the booking is not found.
   Future<void> checkInBooking(String bookingId) async {
-    final response = await supabase
+    // Verify the booking exists and is in a state that allows check-in.
+    final booking = await supabase
         .from('bookings')
-        .select('status')
+        .select('id, status')
         .eq('id', bookingId)
         .maybeSingle();
-    if (response == null) return;
-    final status = response['status'];
-    if (status == 'checked_in') {
+
+    if (booking == null) {
+      throw Exception('Booking not found.');
+    }
+
+    final currentStatus = booking['status'] as String? ?? '';
+
+    if (currentStatus == 'checked_in') {
+      // Already checked in — no need to update, not an error.
       return;
     }
-    if (status != 'confirmed') {
-      return;
+
+    if (currentStatus == 'cancelled') {
+      throw Exception('Cannot check in a cancelled booking.');
     }
+
+    // Perform the actual update.
     await supabase
         .from('bookings')
         .update({'status': 'checked_in'})
         .eq('id', bookingId);
+
+    // Verify the update worked by re-reading the status.
+    final updated = await supabase
+        .from('bookings')
+        .select('status')
+        .eq('id', bookingId)
+        .maybeSingle();
+
+    final newStatus = updated?['status'] as String? ?? '';
+    if (newStatus != 'checked_in') {
+      throw Exception(
+          'Check-in update did not persist. Check Supabase RLS policies — '
+              'ensure the admin role can update the bookings table.');
+    }
   }
 }

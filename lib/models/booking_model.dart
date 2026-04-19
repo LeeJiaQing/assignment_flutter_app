@@ -48,7 +48,7 @@ class Booking {
   final DateTime date;
   final int startHour;
   final int endHour;
-  final String status; // pending | confirmed | cancelled
+  final String status; // pending | confirmed | cancelled | checked in
 
   const Booking({
     required this.id,

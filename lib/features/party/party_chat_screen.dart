@@ -207,11 +207,14 @@ class _DetailsTabState extends State<_DetailsTab> {
 
   Future<void> _loadMembers() async {
     try {
+      // Use explicit FK hint to avoid ambiguity when profiles has multiple
+      // foreign key relationships (user_id -> profiles.id).
       final response = await supabase
           .from('party_members')
-          .select('user_id, profiles(full_name)')
+          .select('user_id, profiles!party_members_user_id_fkey(full_name)')
           .eq('session_id', widget.session.id);
 
+      if (!mounted) return;
       setState(() {
         _members = (response as List<dynamic>).map((r) {
           final name =
@@ -220,8 +223,25 @@ class _DetailsTabState extends State<_DetailsTab> {
         }).toList();
         _membersLoaded = true;
       });
-    } catch (_) {
-      setState(() => _membersLoaded = true);
+    } catch (e) {
+      // Fallback: try without FK hint in case the FK name differs.
+      try {
+        final response = await supabase
+            .from('party_members')
+            .select('user_id, profiles(full_name)')
+            .eq('session_id', widget.session.id);
+        if (!mounted) return;
+        setState(() {
+          _members = (response as List<dynamic>).map((r) {
+            final name =
+                (r['profiles'] as Map?)?['full_name'] as String? ?? 'Unknown';
+            return _Member(userId: r['user_id'] as String, name: name);
+          }).toList();
+          _membersLoaded = true;
+        });
+      } catch (_) {
+        if (mounted) setState(() => _membersLoaded = true);
+      }
     }
   }
 
@@ -258,7 +278,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.25),
+                      color: Colors.white.withOpacity(0.25),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(widget.session.sport,
@@ -270,6 +290,13 @@ class _DetailsTabState extends State<_DetailsTab> {
                   const Spacer(),
                   if (widget.isHost)
                     _HeaderBadge(label: "You're hosting"),
+                  if (widget.session.isEdited) ...[
+                    const SizedBox(width: 6),
+                    _HeaderBadge(
+                      label: 'Edited',
+                      icon: Icons.edit_outlined,
+                    ),
+                  ],
                   if (widget.isAdmin && !widget.isHost)
                     _HeaderBadge(
                         label: 'Admin view',
@@ -594,7 +621,7 @@ class _ParticipantTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: const Color(0xFF1C894E).withValues(alpha: 0.10),
+                color: const Color(0xFF1C894E).withOpacity(0.10),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(badge!,
@@ -735,7 +762,7 @@ class _HeaderBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.25),
+        color: Colors.white.withOpacity(0.25),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -788,7 +815,7 @@ class _InfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withOpacity(0.04),
               blurRadius: 6,
               offset: const Offset(0, 2))
         ],
@@ -827,7 +854,7 @@ class _StatBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

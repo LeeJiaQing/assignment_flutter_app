@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/services/qr_service.dart';
-import '../../core/supabase/supabase_config.dart';
 
 class QrScannerScreen extends StatefulWidget {
   const QrScannerScreen({super.key});
@@ -15,7 +14,7 @@ class QrScannerScreen extends StatefulWidget {
 class _QrScannerScreenState extends State<QrScannerScreen>
     with WidgetsBindingObserver {
   final MobileScannerController _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.normal,
+    detectionSpeed: DetectionSpeed.noDuplicates,
   );
   final QrService _qrService = QrService();
 
@@ -55,7 +54,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     // Lock processing immediately so re-detection is blocked while the
     // sheet is visible.
     setState(() => _isProcessing = true);
-    await _controller.stop();
+    _controller.stop();
 
     await _validate(code);
   }
@@ -149,6 +148,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         qrService: _qrService,
         onDismiss: () {
           Navigator.pop(context);
+          _resumeScanning();
         },
       ),
     ).whenComplete(_resumeScanning);
@@ -197,7 +197,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           MobileScanner(controller: _controller, onDetect: _onDetect),
           _ScanOverlay(isProcessing: _isProcessing),
           Positioned(
-            bottom: MediaQuery.of(context).padding.bottom + 24,
+            bottom: 48,
             left: 0,
             right: 0,
             child: Column(
@@ -244,7 +244,7 @@ class _ScanOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColorFiltered(
       colorFilter: ColorFilter.mode(
-        Colors.black.withValues(alpha: 0.5),
+        Colors.black.withOpacity(0.5),
         BlendMode.srcOut,
       ),
       child: Stack(
@@ -291,28 +291,16 @@ class _ResultSheetState extends State<_ResultSheet> {
     final bookingId = widget.result.booking?['id'] as String?;
     if (bookingId == null) return;
     setState(() => _checkingIn = true);
-
-    await widget.qrService.checkInBooking(bookingId);
-    if (!mounted) return;
-    setState(() {
-      _checkingIn = false;
-      _checkedIn = true;
-    });
-    Navigator.pop(context, true);
-
     try {
-      await supabase
-          .from('bookings')
-          .update({'status': 'checked_in'})
-          .eq('id', bookingId)
-          .eq('status', 'confirmed');
+      await widget.qrService.checkInBooking(bookingId);
+      if (!mounted) return;
       setState(() {
         _checkingIn = false;
         _checkedIn = true;
       });
     } catch (e) {
-      setState(() => _checkingIn = false);
       if (!mounted) return;
+      setState(() => _checkingIn = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Check-in failed: $e'),
@@ -329,7 +317,7 @@ class _ResultSheetState extends State<_ResultSheet> {
         left: 24,
         right: 24,
         top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 32,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -350,7 +338,7 @@ class _ResultSheetState extends State<_ResultSheet> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: _statusColor.withValues(alpha: 0.12),
+              color: _statusColor.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(_statusIcon, color: _statusColor, size: 36),
@@ -385,7 +373,7 @@ class _ResultSheetState extends State<_ResultSheet> {
           const SizedBox(height: 24),
 
           // Check-in button — only for valid (not yet checked-in) bookings
-          if (widget.result.isValid && widget.result.booking?['status'] == 'confirmed' && !_checkedIn)
+          if (widget.result.isValid && !_checkedIn)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
