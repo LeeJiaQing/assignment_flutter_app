@@ -200,21 +200,19 @@ class _HomeViewState extends State<_HomeView> {
                 color: Color(0xFF1C3A2A)),
           ),
         ),
-        SizedBox(
-          height: 36,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: sports.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, i) {
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: sports.map((sport) {
               return Material(
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
                   onTap: () => context
                       .read<NavigationViewModel>()
-                      .openFacilityWithCategory(sports[i]),
+                      .openFacilityWithCategory(sport),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 8),
@@ -226,7 +224,7 @@ class _HomeViewState extends State<_HomeView> {
                       ),
                     ),
                     child: Text(
-                      sports[i],
+                      sport,
                       style: const TextStyle(
                         color: Colors.black87,
                         fontSize: 13,
@@ -236,7 +234,7 @@ class _HomeViewState extends State<_HomeView> {
                   ),
                 ),
               );
-            },
+            }).toList(),
           ),
         ),
       ],

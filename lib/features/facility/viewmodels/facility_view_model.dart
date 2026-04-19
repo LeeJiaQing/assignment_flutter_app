@@ -31,13 +31,14 @@ class FacilityViewModel extends ChangeNotifier {
 
   List<Facility> get filteredFacilities {
     final q = _query.toLowerCase();
+    final selectedCategory = _selectedCategory?.trim().toLowerCase();
     return _facilities.where((f) {
       final textMatches = q.isEmpty ||
           f.name.toLowerCase().contains(q) ||
           f.address.toLowerCase().contains(q) ||
           f.category.toLowerCase().contains(q);
-      final categoryMatches = _selectedCategory == null ||
-          f.category.toLowerCase() == _selectedCategory!.toLowerCase();
+      final categoryMatches = selectedCategory == null ||
+          f.category.trim().toLowerCase() == selectedCategory;
       return textMatches && categoryMatches;
     }).toList();
   }
@@ -78,7 +79,10 @@ class FacilityViewModel extends ChangeNotifier {
   }
 
   void setCategoryFilter(String? category) {
-    _selectedCategory = category;
+    final normalized = category?.trim();
+    _selectedCategory = (normalized == null || normalized.isEmpty)
+        ? null
+        : normalized;
     notifyListeners();
   }
 }
