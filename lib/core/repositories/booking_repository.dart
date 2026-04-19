@@ -1,5 +1,6 @@
 // lib/core/repositories/booking_repository.dart
 import '../../models/booking_model.dart';
+import '../local/local_notification_service.dart';
 import '../supabase/supabase_config.dart';
 
 class BookingRepository {
@@ -192,6 +193,11 @@ class BookingRepository {
           'description': deductedLabel,
         });
       }
+      try {
+        await LocalNotificationService.instance.cancelReminder(
+          bookingId.hashCode.abs() % 100000,
+        );
+      } catch (_) {}
     } catch (_) {
       // Do not fail cancellation if rewards reconciliation fails.
     }

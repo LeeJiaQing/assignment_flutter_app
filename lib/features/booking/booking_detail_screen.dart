@@ -12,9 +12,14 @@ import 'viewmodels/booking_view_model.dart';
 import 'widgets/facility_thumb.dart';
 
 class BookingDetailScreen extends StatelessWidget {
-  const BookingDetailScreen({super.key, required this.bookingWithFacility});
+  const BookingDetailScreen({
+    super.key,
+    required this.bookingWithFacility,
+    this.allowCancel = true,
+  });
 
   final BookingWithFacility bookingWithFacility;
+  final bool allowCancel;
 
   String _fmt(int h) {
     final suffix = h < 12 ? 'AM' : 'PM';
@@ -49,110 +54,124 @@ class BookingDetailScreen extends StatelessWidget {
                 _QrSection(bookingId: booking.id),
               ],
 
-              // ── Status Banner for non-active bookings ────────────────
-              if (booking.status != 'confirmed') ...[
-                const SizedBox(height: 16),
-                _StatusBanner(status: booking.status),
-              ],
+                  // ── Status Banner for non-active bookings ────────────────
+                  if (booking.status != 'confirmed') ...[
+                    const SizedBox(height: 16),
+                    _StatusBanner(status: booking.status),
+                  ],
 
-              const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-              // ── Booking Details Card ──────────────────────────────────
-              _SectionCard(
-                title: 'Booking Details',
-                icon: Icons.receipt_long_outlined,
-                children: [
-                  _DetailRow(
-                    icon: Icons.stadium_outlined,
-                    label: 'Facility',
-                    value: bookingWithFacility.facilityName,
-                  ),
-                  _DetailRow(
-                    icon: Icons.calendar_today_outlined,
-                    label: 'Date',
-                    value:
-                    '${booking.date.day.toString().padLeft(2, '0')}/'
-                        '${booking.date.month.toString().padLeft(2, '0')}/'
-                        '${booking.date.year}',
-                  ),
-                  _DetailRow(
-                    icon: Icons.access_time_outlined,
-                    label: 'Time',
-                    value:
-                    '${_fmt(booking.startHour)} \u2013 ${_fmt(booking.endHour)}',
-                  ),
-                  _StatusRow(status: booking.status),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // ── Payment Details Card ──────────────────────────────────
-              _SectionCard(
-                title: 'Payment Details',
-                icon: Icons.payment_outlined,
-                children: [
-                  _PaymentDetailsRows(
-                      bookingId: booking.id, booking: booking),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // ── Cancel Button ─────────────────────────────────────────
-              if (BookingViewModel.canCancel(bookingWithFacility))
-                _CancelButton(
-                  onCancel: () => _handleCancel(context, booking.id),
-                ),
-
-              if (booking.status == 'confirmed' &&
-                  !BookingViewModel.canCancel(bookingWithFacility))
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.orange.shade200),
-                  ),
-                  child: const Row(
+                  // ── Booking Details Card ──────────────────────────────────
+                  _SectionCard(
+                    title: 'Booking Details',
+                    icon: Icons.receipt_long_outlined,
                     children: [
-                      Icon(Icons.info_outline,
-                          color: Colors.orange, size: 18),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'This booking cannot be cancelled as the session time has already passed.',
-                          style:
-                          TextStyle(fontSize: 12, color: Colors.black87),
-                        ),
+                      _DetailRow(
+                        icon: Icons.stadium_outlined,
+                        label: 'Facility',
+                        value: bookingWithFacility.facilityName,
+                      ),
+                      _DetailRow(
+                        icon: Icons.calendar_today_outlined,
+                        label: 'Date',
+                        value:
+                            '${booking.date.day.toString().padLeft(2, '0')}/'
+                            '${booking.date.month.toString().padLeft(2, '0')}/'
+                            '${booking.date.year}',
+                      ),
+                      _DetailRow(
+                        icon: Icons.access_time_outlined,
+                        label: 'Time',
+                        value:
+                            '${_fmt(booking.startHour)} \u2013 ${_fmt(booking.endHour)}',
+                      ),
+                      _StatusRow(status: booking.status),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ── Payment Details Card ──────────────────────────────────
+                  _SectionCard(
+                    title: 'Payment Details',
+                    icon: Icons.payment_outlined,
+                    children: [
+                      _PaymentDetailsRows(
+                        bookingId: booking.id,
+                        booking: booking,
                       ),
                     ],
                   ),
-                ),
-            ],
-          ),
-        );
-      }),
+                  const SizedBox(height: 16),
+
+                  // ── Cancel Button ─────────────────────────────────────────
+                  if (allowCancel && BookingViewModel.canCancel(bookingWithFacility))
+                    _CancelButton(
+                      onCancel: () => _handleCancel(context, booking.id),
+                    ),
+
+                  if (allowCancel &&
+                      booking.status == 'confirmed' &&
+                      !BookingViewModel.canCancel(bookingWithFacility))
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.orange,
+                            size: 18,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'This booking cannot be cancelled as the session is already started.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
   Future<void> _handleCancel(BuildContext context, String bookingId) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Cancel Booking'),
-        content: const Text(
-            'Are you sure you want to cancel this booking?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep It'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Cancel Booking'),
+            content: const Text(
+              'Are you sure you want to cancel this booking?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Keep It'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  'Cancel Booking',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cancel Booking',
-                style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
 
     if (confirmed != true || !context.mounted) return;
@@ -161,9 +180,9 @@ class BookingDetailScreen extends StatelessWidget {
 
     if (!context.mounted) return;
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Booking cancelled.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Booking cancelled.')));
   }
 }
 
@@ -171,6 +190,7 @@ class BookingDetailScreen extends StatelessWidget {
 
 class _QrSection extends StatelessWidget {
   const _QrSection({required this.bookingId});
+
   final String bookingId;
 
   @override
@@ -261,6 +281,7 @@ class _QrSection extends StatelessWidget {
 
 class _StatusBanner extends StatelessWidget {
   const _StatusBanner({required this.status});
+
   final String status;
 
   @override
@@ -316,9 +337,10 @@ class _StatusBanner extends StatelessWidget {
             child: Text(
               message,
               style: TextStyle(
-                  color: fg,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13),
+                color: fg,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -330,10 +352,7 @@ class _StatusBanner extends StatelessWidget {
 // ── Payment Details ────────────────────────────────────────────────────────
 
 class _PaymentDetailsRows extends StatelessWidget {
-  const _PaymentDetailsRows({
-    required this.bookingId,
-    required this.booking,
-  });
+  const _PaymentDetailsRows({required this.bookingId, required this.booking});
 
   final String bookingId;
   final Booking booking;
@@ -343,8 +362,7 @@ class _PaymentDetailsRows extends StatelessWidget {
     return FutureBuilder<Map<String, dynamic>?>(
       future: _loadPaymentRow(),
       builder: (context, snapshot) {
-        final methodCode =
-            (snapshot.data?['method'] as String?) ?? '';
+        final methodCode = (snapshot.data?['method'] as String?) ?? '';
         final labels = _paymentLabels(methodCode);
 
         return Column(
@@ -363,7 +381,7 @@ class _PaymentDetailsRows extends StatelessWidget {
               icon: Icons.calendar_month_outlined,
               label: 'Payment Date',
               value:
-              '${booking.date.day.toString().padLeft(2, '0')}/'
+                  '${booking.date.day.toString().padLeft(2, '0')}/'
                   '${booking.date.month.toString().padLeft(2, '0')}/'
                   '${booking.date.year}',
             ),
@@ -417,16 +435,18 @@ class _PaymentDetailsRows extends StatelessWidget {
 class _PaymentLabels {
   final String type;
   final String method;
+
   const _PaymentLabels({required this.type, required this.method});
 }
 
 // ── Section Card ───────────────────────────────────────────────────────────
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard(
-      {required this.title,
-        required this.icon,
-        required this.children});
+  const _SectionCard({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
 
   final String title;
   final IconData icon;
@@ -454,11 +474,14 @@ class _SectionCard extends StatelessWidget {
             children: [
               Icon(icon, size: 18, color: const Color(0xFF1C894E)),
               const SizedBox(width: 8),
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1C3A2A))),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1C3A2A),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -474,8 +497,12 @@ class _SectionCard extends StatelessWidget {
 // ── Detail Row ─────────────────────────────────────────────────────────────
 
 class _DetailRow extends StatelessWidget {
-  const _DetailRow(
-      {required this.icon, required this.label, required this.value});
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
   final IconData icon;
   final String label;
   final String value;
@@ -491,16 +518,20 @@ class _DetailRow extends StatelessWidget {
           const SizedBox(width: 10),
           SizedBox(
             width: 110,
-            child: Text(label,
-                style:
-                const TextStyle(fontSize: 13, color: Colors.grey)),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
           ),
           Expanded(
-            child: Text(value,
-                style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w500)),
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),
@@ -512,6 +543,7 @@ class _DetailRow extends StatelessWidget {
 
 class _StatusRow extends StatelessWidget {
   const _StatusRow({required this.status});
+
   final String status;
 
   Color get _color {
@@ -538,26 +570,29 @@ class _StatusRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          const Icon(Icons.info_outline,
-              size: 16, color: Color(0xFF1C894E)),
+          const Icon(Icons.info_outline, size: 16, color: Color(0xFF1C894E)),
           const SizedBox(width: 10),
           const SizedBox(
-              width: 110,
-              child: Text('Status',
-                  style:
-                  TextStyle(fontSize: 13, color: Colors.grey))),
+            width: 110,
+            child: Text(
+              'Status',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ),
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 10, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
             decoration: BoxDecoration(
               color: _color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(_label,
-                style: TextStyle(
-                    color: _color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12)),
+            child: Text(
+              _label,
+              style: TextStyle(
+                color: _color,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
           ),
         ],
       ),
@@ -569,6 +604,7 @@ class _StatusRow extends StatelessWidget {
 
 class _CancelButton extends StatelessWidget {
   const _CancelButton({required this.onCancel});
+
   final VoidCallback onCancel;
 
   @override
@@ -584,7 +620,8 @@ class _CancelButton extends StatelessWidget {
             foregroundColor: Colors.red,
             side: const BorderSide(color: Colors.red),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+              borderRadius: BorderRadius.circular(12),
+            ),
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
           onPressed: onCancel,

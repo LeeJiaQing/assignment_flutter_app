@@ -5,6 +5,7 @@ import '../../core/di/app_dependencies.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../admin/viewmodels/admin_facility_view_model.dart';
 import '../admin/widgets/admin_facility_tile.dart';
+import '../home/viewmodels/navigation_view_model.dart';
 import 'viewmodels/facility_page_view_model.dart';
 import 'viewmodels/facility_view_model.dart';
 import 'widgets/facility_card.dart';
@@ -40,11 +41,38 @@ class FacilityScreen extends StatelessWidget {
   }
 }
 
-class _FacilityView extends StatelessWidget {
+class _FacilityView extends StatefulWidget {
   const _FacilityView();
 
   @override
+  State<_FacilityView> createState() => _FacilityViewState();
+}
+
+class _FacilityViewState extends State<_FacilityView> {
+  int _lastAppliedRequestToken = -1;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _applyPendingCategoryFilter();
+  }
+
+  void _applyPendingCategoryFilter() {
+    final navVm = context.read<NavigationViewModel>();
+    final token = navVm.facilityFilterRequestToken;
+    if (token == _lastAppliedRequestToken) return;
+
+    _lastAppliedRequestToken = token;
+    final requested = navVm.requestedFacilityCategory;
+    if (requested != null && requested.trim().isNotEmpty) {
+      context.read<FacilityViewModel>().setCategoryFilter(requested);
+      navVm.clearRequestedFacilityCategory();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    _applyPendingCategoryFilter();
     final vm = context.watch<FacilityViewModel>();
     final pageVm = context.watch<FacilityPageViewModel>();
 

@@ -12,6 +12,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/local/local_chat_cache.dart';
 import '../../../core/supabase/supabase_config.dart';
 
 class ChatMessage {
@@ -32,13 +33,14 @@ class ChatMessage {
   bool get isMe => senderId == supabase.auth.currentUser?.id;
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
-    // profiles join on sender_id -> profiles.id
+    // The join is: messages join profiles on sender_id = profiles.id
+    // Supabase returns the joined row as json['profiles'] => {'full_name': '...'}
     final profileName =
     (json['profiles'] as Map<String, dynamic>?)?['full_name'] as String?;
     return ChatMessage(
       id: json['id'] as String,
       senderId: json['sender_id'] as String,
-      senderName: profileName ?? 'User',
+      senderName: (json['sender_name'] as String?) ?? profileName ?? 'User',
       content: json['content'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
@@ -49,12 +51,14 @@ class ChatViewModel extends ChangeNotifier {
   ChatViewModel({required this.channelId});
 
   final String channelId;
+  final LocalChatCache _localCache = LocalChatCache();
 
   // ── Static cache so messages survive screen close/reopen ──────────────────
-  static final Map<String, List<ChatMessage>> _cache = {};
+  static final Map<String, List<ChatMessage>> _memoryCache = {};
 
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
+  bool _isShowingCached = false;
   String? _errorMessage;
 
   RealtimeChannel? _realtimeChannel;
@@ -62,6 +66,7 @@ class ChatViewModel extends ChangeNotifier {
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   bool get isLoading => _isLoading;
+  bool get isShowingCached => _isShowingCached;
   String? get errorMessage => _errorMessage;
 
   @override
@@ -75,8 +80,10 @@ class ChatViewModel extends ChangeNotifier {
 
   Future<void> loadMessages() async {
     // Restore from cache immediately so previous messages show at once.
-    if (_cache.containsKey(channelId)) {
-      _messages.addAll(_cache[channelId]!);
+    if (_memoryCache.containsKey(channelId)) {
+      _messages
+        ..clear()
+        ..addAll(_memoryCache[channelId]!);
       notifyListeners();
     }
 
@@ -96,26 +103,94 @@ class ChatViewModel extends ChangeNotifier {
 
   Future<void> _fetchMessages() async {
     try {
-      final response = await supabase
-          .from('messages')
-          .select('id, sender_id, content, created_at, profiles(full_name)')
-          .eq('channel_id', channelId)
-          .order('created_at', ascending: true);
+      List<ChatMessage> fetched;
+      try {
+        // Join profiles on sender_id so we always get the real display name.
+        final response = await supabase
+            .from('messages')
+            .select('id, sender_id, content, created_at, profiles(full_name)')
+            .eq('channel_id', channelId)
+            .order('created_at', ascending: true);
 
-      final fetched = (response as List<dynamic>)
-          .map((json) => ChatMessage.fromJson(json as Map<String, dynamic>))
-          .toList();
+        fetched = (response as List<dynamic>)
+            .map((json) =>
+                ChatMessage.fromJson(json as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        // Fallback if relation/embed is unavailable in this DB schema.
+        final response = await supabase
+            .from('messages')
+            .select('id, sender_id, content, created_at')
+            .eq('channel_id', channelId)
+            .order('created_at', ascending: true);
+
+        final rows = (response as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        final senderIds = rows
+            .map((r) => r['sender_id'] as String)
+            .toSet()
+            .toList();
+
+        final Map<String, String> senderNames = {};
+        if (senderIds.isNotEmpty) {
+          try {
+            final profileRows = await supabase
+                .from('profiles')
+                .select('id, full_name')
+                .inFilter('id', senderIds);
+            for (final p in (profileRows as List<dynamic>)
+                .cast<Map<String, dynamic>>()) {
+              senderNames[p['id'] as String] =
+                  (p['full_name'] as String?) ?? 'User';
+            }
+          } catch (_) {
+            // Ignore name lookup errors; messages are still shown.
+          }
+        }
+
+        fetched = rows
+            .map((row) => ChatMessage.fromJson({
+                  ...row,
+                  'sender_name': senderNames[row['sender_id']] ??
+                      (row['sender_id'] == supabase.auth.currentUser?.id
+                          ? 'You'
+                          : 'User'),
+                }))
+            .toList();
+      }
 
       // Rebuild from server, dropping any optimistic placeholders.
       _messages
         ..removeWhere((m) => m.id.startsWith('optimistic_'))
-        ..clear();
-      _messages.addAll(fetched);
-
-      // Update cache.
-      _cache[channelId] = List.of(_messages);
+        ..clear()
+        ..addAll(fetched);
+      await _localCache.saveMessages(
+        channelId: channelId,
+        messages: fetched.map(_toCacheRow).toList(),
+      );
+      _memoryCache[channelId] = List.of(_messages);
+      _isShowingCached = false;
+      _errorMessage = null;
     } catch (e) {
-      _errorMessage = e.toString();
+      final cachedRows = await _localCache.getMessages(
+        channelId: channelId,
+        ignoreExpiry: true,
+      );
+      if (cachedRows.isNotEmpty) {
+        final cached = cachedRows
+            .map(ChatMessage.fromJson)
+            .toList();
+        _messages
+          ..removeWhere((m) => m.id.startsWith('optimistic_'))
+          ..clear()
+          ..addAll(cached);
+        _memoryCache[channelId] = List.of(_messages);
+        _isShowingCached = true;
+        _errorMessage = null;
+      } else {
+        _isShowingCached = false;
+        _errorMessage = e.toString();
+      }
     }
   }
 
@@ -176,10 +251,10 @@ class ChatViewModel extends ChangeNotifier {
       senderId: user.id,
       senderName: user.userMetadata?['full_name'] as String? ?? 'You',
       content: trimmed,
-      createdAt: DateTime.now(),
+      createdAt: DateTime.now()
     );
     _messages.add(optimistic);
-    _cache[channelId] = List.of(_messages);
+    _memoryCache[channelId] = List.of(_messages);
     notifyListeners();
 
     try {
@@ -188,14 +263,28 @@ class ChatViewModel extends ChangeNotifier {
         'sender_id': user.id,
         'content': trimmed,
       });
-      // Replace optimistic row with the real server row.
+      // Replace optimistic row with the real server row (has proper ID + name).
       await _fetchMessages();
       notifyListeners();
     } catch (e) {
-      _messages.removeWhere((m) => m.id == optimisticId);
-      _cache[channelId] = List.of(_messages);
-      _errorMessage = e.toString();
+      final pending = _messages
+          .firstWhere((m) => m.id == optimisticId);
+      await _localCache.upsertMessage(
+        channelId: channelId,
+        message: _toCacheRow(pending),
+      );
+      _memoryCache[channelId] = List.of(_messages);
+      _errorMessage =
+          'Message saved locally. It will be visible offline until internet returns.';
       notifyListeners();
     }
   }
+
+  Map<String, dynamic> _toCacheRow(ChatMessage m) => {
+        'id': m.id,
+        'sender_id': m.senderId,
+        'sender_name': m.senderName,
+        'content': m.content,
+        'created_at': m.createdAt.toIso8601String(),
+      };
 }

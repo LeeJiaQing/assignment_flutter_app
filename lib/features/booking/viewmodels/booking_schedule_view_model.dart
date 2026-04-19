@@ -46,8 +46,6 @@ class BookingScheduleViewModel extends ChangeNotifier {
   final Map<String, ScheduleStatus> _courtStatus = {};
   final Map<String, SelectedSlot> _selectedSlots = {};
 
-  // Tracks how many slots the user already has confirmed for this
-  // facility on the currently selected date (fetched from Supabase).
   int _existingBookingCount = 0;
 
   @override
@@ -112,7 +110,7 @@ class BookingScheduleViewModel extends ChangeNotifier {
 
   void _startClock() {
     _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      final now = DateTime.now();
+      final now = DateTime.now().toLocal();
       _selectedSlots.removeWhere((_, selected) {
         return selected.slot.effectiveStatus(now) == SlotStatus.expired;
       });

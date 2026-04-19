@@ -31,7 +31,7 @@ class LocalDatabase {
 
     return openDatabase(
       path,
-      version: 3,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -47,6 +47,7 @@ class LocalDatabase {
         open_hour INTEGER NOT NULL,
         close_hour INTEGER NOT NULL,
         price_per_slot REAL NOT NULL,
+        category TEXT NOT NULL DEFAULT 'Other',
         cached_at INTEGER NOT NULL
       )
     ''');
@@ -123,6 +124,18 @@ class LocalDatabase {
         cached_at INTEGER NOT NULL
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE chat_message_cache (
+        id TEXT PRIMARY KEY,
+        channel_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        sender_name TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        cached_at INTEGER NOT NULL
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -168,6 +181,26 @@ class LocalDatabase {
           cached_at INTEGER NOT NULL
         )
       ''');
+    }
+
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS chat_message_cache (
+          id TEXT PRIMARY KEY,
+          channel_id TEXT NOT NULL,
+          sender_id TEXT NOT NULL,
+          sender_name TEXT NOT NULL,
+          content TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          cached_at INTEGER NOT NULL
+        )
+      ''');
+    }
+
+    if (oldVersion < 5) {
+      await db.execute(
+        "ALTER TABLE facilities ADD COLUMN category TEXT NOT NULL DEFAULT 'Other'",
+      );
     }
   }
 

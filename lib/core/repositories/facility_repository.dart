@@ -1,4 +1,7 @@
 // lib/core/repositories/facility_repository.dart
+import 'dart:typed_data';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../models/facility_model.dart';
 import '../supabase/supabase_config.dart';
 
@@ -24,6 +27,7 @@ class FacilityRepository {
       openHour: raw.openHour,
       closeHour: raw.closeHour,
       pricePerSlot: raw.pricePerSlot,
+      category: raw.category,
       courts: raw.courts,
     );
   }
@@ -57,8 +61,16 @@ class FacilityRepository {
 
     final response = await supabase
         .from('facilities')
-        .select(
-        'id, name, address, image_url, open_hour, close_hour, price_per_slot')
+        .select('''
+          id,
+          name,
+          address,
+          image_url,
+          open_hour,
+          close_hour,
+          price_per_slot,
+          category
+        ''')
         .inFilter('id', ids);
 
     return (response as List<dynamic>)
@@ -92,5 +104,21 @@ class FacilityRepository {
   /// Delete a facility.
   Future<void> deleteFacility(String id) async {
     await supabase.from('facilities').delete().eq('id', id);
+  }
+
+  /// Uploads a facility image and returns the stored object path.
+  Future<String> uploadFacilityImage({
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    final path = 'uploads/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+
+    await supabase.storage.from(_bucket).uploadBinary(
+      path,
+      bytes,
+      fileOptions: const FileOptions(upsert: true),
+    );
+
+    return path;
   }
 }

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/repositories/auth_repository.dart';
+import '../admin/admin_feedback_screen.dart';
+import '../party/party_screen.dart';
+import 'edit_profile_screen.dart';
 import 'viewmodels/profile_view_model.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_menu_item.dart';
@@ -91,28 +94,47 @@ class _ProfileViewState extends State<_ProfileView> {
               ProfileMenuItem(
                 icon: Icons.edit_outlined,
                 label: 'Edit Profile',
-                onTap: () =>
-                    Navigator.pushNamed(context, '/profile/edit'),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChangeNotifierProvider.value(
+                      value: vm,
+                      child: const EditProfileScreen(),
+                    ),
+                  ),
+                ),
               ),
-              ProfileMenuItem(
-                icon: Icons.calendar_today_outlined,
-                label: 'My Bookings',
-                onTap: () =>
-                    Navigator.pushNamed(context, '/bookings'),
-              ),
-              ProfileMenuItem(
-                icon: Icons.star_outline,
-                label: 'Reward Points',
-                onTap: () =>
-                    Navigator.pushNamed(context, '/rewards'),
-              ),
-              // My Sessions — member only
               if (!_isAdmin)
                 ProfileMenuItem(
-                  icon: Icons.sports_soccer,
-                  label: 'My Party Sessions',
+                  icon: Icons.calendar_today_outlined,
+                  label: 'My Bookings',
                   onTap: () =>
-                      Navigator.pushNamed(context, '/party/my'),
+                      Navigator.pushNamed(context, '/bookings'),
+                ),
+              if (!_isAdmin)
+                ProfileMenuItem(
+                  icon: Icons.star_outline,
+                  label: 'Reward Points',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/rewards'),
+                ),
+              if (!_isAdmin)
+              ProfileMenuItem(
+                icon: Icons.celebration_outlined,
+                label: 'My Party Sessions',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PartyScreen(showBackButton: true),
+                  ),
+                ),
+              ),
+              if (_isAdmin)
+                ProfileMenuItem(
+                  icon: Icons.manage_accounts_outlined,
+                  label: 'Manage Users',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/admin/users'),
                 ),
             ],
           ),
@@ -121,12 +143,27 @@ class _ProfileViewState extends State<_ProfileView> {
           _MenuSection(
             title: 'Support',
             children: [
-              ProfileMenuItem(
-                icon: Icons.feedback_outlined,
-                label: 'Send Feedback',
-                onTap: () =>
-                    Navigator.pushNamed(context, '/feedback'),
-              ),
+              // Admin: view feedback inbox. User: send feedback.
+              if (_isAdmin)
+                ProfileMenuItem(
+                  icon: Icons.feedback_outlined,
+                  label: 'View User Feedback',
+                  trailing: const Icon(Icons.inbox_outlined,
+                      color: Color(0xFF1C894E), size: 18),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminFeedbackScreen(),
+                    ),
+                  ),
+                )
+              else
+                ProfileMenuItem(
+                  icon: Icons.feedback_outlined,
+                  label: 'Send Feedback',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/feedback'),
+                ),
               ProfileMenuItem(
                 icon: Icons.description_outlined,
                 label: 'Terms & Conditions',
@@ -134,9 +171,7 @@ class _ProfileViewState extends State<_ProfileView> {
                 // members see the read-only version.
                 onTap: () => Navigator.pushNamed(
                   context,
-                  _isAdmin
-                      ? '/admin/terms/edit'
-                      : '/terms',
+                  _isAdmin ? '/admin/terms/edit' : '/terms',
                 ),
                 trailing: _isAdmin
                     ? const Icon(Icons.edit_outlined,

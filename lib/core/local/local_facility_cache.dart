@@ -31,6 +31,7 @@ class LocalFacilityCache {
             'open_hour': f.openHour,
             'close_hour': f.closeHour,
             'price_per_slot': f.pricePerSlot,
+            'category': f.category,
             'cached_at': now,
           },
           conflictAlgorithm: ConflictAlgorithm.replace,
@@ -88,6 +89,7 @@ class LocalFacilityCache {
         openHour: r['open_hour'] as int,
         closeHour: r['close_hour'] as int,
         pricePerSlot: r['price_per_slot'] as double,
+        category: (r['category'] as String?) ?? 'Other',
         courts: courtsByFacility[id] ?? [],
       );
     }).toList();

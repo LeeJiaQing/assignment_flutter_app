@@ -33,9 +33,14 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class _HomeView extends StatelessWidget {
+class _HomeView extends StatefulWidget {
   const _HomeView();
 
+  @override
+  State<_HomeView> createState() => _HomeViewState();
+}
+
+class _HomeViewState extends State<_HomeView> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<FacilityViewModel>();
@@ -55,7 +60,7 @@ class _HomeView extends StatelessWidget {
               _buildSearchBar(context, vm),
 
               // ── Pick Trendy chips ────────────────────────────────────────
-              _buildTrendySection(),
+              _buildTrendySection(context, vm),
 
               // ── Near By You ─────────────────────────────────────────────
               if (vm.status == FacilityStatus.loaded &&
@@ -175,8 +180,8 @@ class _HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildTrendySection() {
-    const sports = ['Badminton', 'Basketball', 'Futsal', 'Squash'];
+  Widget _buildTrendySection(BuildContext context, FacilityViewModel vm) {
+    final sports = vm.categories;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -190,36 +195,85 @@ class _HomeView extends StatelessWidget {
                 color: Color(0xFF1C3A2A)),
           ),
         ),
-        SizedBox(
-          height: 36,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: sports.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, i) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: i == 0
-                    ? const Color(0xFF1C894E)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: i == 0
-                      ? const Color(0xFF1C894E)
-                      : Colors.grey.shade300,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: sports.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'No facility categories available yet.',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                )
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: sports.map((sport) {
+                    final isSelected = _selectedTrendyCategory == sport;
+                    return OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedTrendyCategory =
+                              isSelected ? null : sport;
+                        });
+                      },
+                      style: ButtonStyle(
+                        backgroundColor:
+                            MaterialStateProperty.resolveWith((states) {
+                          if (isSelected) return const Color(0xFF1C894E);
+                          if (states.contains(MaterialState.hovered)) {
+                            return const Color(0xFFEAF6EF);
+                          }
+                          return Colors.white;
+                        }),
+                        foregroundColor:
+                            MaterialStateProperty.resolveWith((states) {
+                          if (isSelected) return Colors.white;
+                          if (states.contains(MaterialState.hovered)) {
+                            return const Color(0xFF1C894E);
+                          }
+                          return Colors.black87;
+                        }),
+                        side: MaterialStateProperty.resolveWith((states) {
+                          if (isSelected) {
+                            return BorderSide.none;
+                          }
+                          if (states.contains(MaterialState.hovered)) {
+                            return const BorderSide(color: Color(0xFF6DCC98));
+                          }
+                          return BorderSide(color: Colors.grey.shade300);
+                        }),
+                        shape: MaterialStateProperty.all(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        padding: MaterialStateProperty.all(
+                          const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        overlayColor: MaterialStateProperty.resolveWith(
+                          (states) => isSelected
+                              ? Colors.white.withOpacity(0.14)
+                              : const Color(0xFF1C894E).withOpacity(0.08),
+                        ),
+                      ),
+                      child: Text(
+                        sport,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
-              ),
-              child: Text(
-                sports[i],
-                style: TextStyle(
-                  color: i == 0 ? Colors.white : Colors.black87,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
         ),
       ],
     );

@@ -2,7 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/repositories/auth_repository.dart';
 import '../../models/notification_model.dart';
+import 'notification_detail_screen.dart';
 import 'viewmodels/notification_view_model.dart';
 
 class NotificationScreen extends StatelessWidget {
@@ -20,16 +22,35 @@ class NotificationScreen extends StatelessWidget {
   }
 }
 
-class _NotificationView extends StatelessWidget {
+class _NotificationView extends StatefulWidget {
   const _NotificationView({required this.showAppBar});
   final bool showAppBar;
+
+  @override
+  State<_NotificationView> createState() => _NotificationViewState();
+}
+
+class _NotificationViewState extends State<_NotificationView> {
+  bool _isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRole();
+  }
+
+  Future<void> _checkRole() async {
+    final role = await AuthRepository().getCurrentUserRole();
+    if (!mounted) return;
+    setState(() => _isAdmin = role == UserRole.admin);
+  }
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<NotificationViewModel>();
 
     return Scaffold(
-      appBar: showAppBar
+      appBar: widget.showAppBar
           ? AppBar(
         title: Row(
           children: [
@@ -113,13 +134,31 @@ class _NotificationView extends StatelessWidget {
               .loadNotifications(),
           child: ListView.builder(
             padding: const EdgeInsets.all(12),
-            itemCount: vm.notifications.length,
-            itemBuilder: (_, i) => _NotificationTile(
-              item: vm.notifications[i],
-              onTap: () => context
-                  .read<NotificationViewModel>()
-                  .markRead(vm.notifications[i].id),
-            ),
+            itemCount: vm.notifications.length + (_isAdmin ? 1 : 0),
+            itemBuilder: (_, i) {
+              if (_isAdmin && i == vm.notifications.length) {
+                return _NewAnnouncementButton(
+                  onTap: () => Navigator.pushNamed(context, '/admin/announcement'),
+                );
+              }
+
+              return _NotificationTile(
+                item: vm.notifications[i],
+                onTap: () async {
+                  final item = vm.notifications[i];
+                  await context
+                      .read<NotificationViewModel>()
+                      .markRead(item.id);
+                  if (!context.mounted) return;
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => NotificationDetailScreen(item: item),
+                    ),
+                  );
+                },
+              );
+            },
           ),
         ),
       },
@@ -185,89 +224,117 @@ class _NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: item.isRead ? Colors.white : const Color(0xFFF0FAF5),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: item.isRead
-                ? Colors.transparent
-                : const Color(0xFF1C894E).withOpacity(0.25),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: item.isRead ? Colors.white : const Color(0xFFF0FAF5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: item.isRead
+              ? Colors.transparent
+              : const Color(0xFF1C894E).withOpacity(0.25),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Icon
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: _iconBg,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(_icon, color: _iconColor, size: 22),
-            ),
-            const SizedBox(width: 12),
-
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _iconBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(_icon, color: _iconColor, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          style: TextStyle(
-                            fontWeight: item.isRead
-                                ? FontWeight.w500
-                                : FontWeight.bold,
-                            fontSize: 14,
-                            color: const Color(0xFF1C3A2A),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.title,
+                              style: TextStyle(
+                                fontWeight: item.isRead
+                                    ? FontWeight.w500
+                                    : FontWeight.bold,
+                                fontSize: 14,
+                                color: const Color(0xFF1C3A2A),
+                              ),
+                            ),
                           ),
-                        ),
+                          if (!item.isRead)
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF1C894E),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                        ],
                       ),
-                      if (!item.isRead)
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF1C894E),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.body,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.black87, height: 1.4),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _formatDate(item.createdAt),
+                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.body,
-                    style: const TextStyle(
-                        fontSize: 13, color: Colors.black87, height: 1.4),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _formatDate(item.createdAt),
-                    style: const TextStyle(
-                        fontSize: 11, color: Colors.grey),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NewAnnouncementButton extends StatelessWidget {
+  const _NewAnnouncementButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 8),
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.add_alert_outlined),
+        label: const Text('New Announcement'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF1C894E),
+          side: const BorderSide(color: Color(0xFF1C894E)),
+          minimumSize: const Size.fromHeight(48),
         ),
       ),
     );

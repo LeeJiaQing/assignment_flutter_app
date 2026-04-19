@@ -84,7 +84,7 @@ class _SlotChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effective = slot.effectiveStatus(DateTime.now());
+    final effective = slot.effectiveStatus(DateTime.now().toLocal());
 
     Color chipColor;
     Color textColor;

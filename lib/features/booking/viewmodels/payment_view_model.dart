@@ -3,8 +3,11 @@
 // create_upcoming_booking_reminders() — no client-side scheduling needed.
 import 'package:flutter/material.dart';
 
+import '../../../core/local/local_booking_cache.dart';
+import '../../../core/local/local_notification_service.dart';
 import '../../../core/services/booking_service.dart';
 import '../../../core/supabase/supabase_config.dart';
+import '../../../models/booking_model.dart';
 import '../../rewardPoints/viewmodels/reward_points_view_model.dart';
 
 enum PayMethod { tng, card, banking }
@@ -226,6 +229,8 @@ class PaymentViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final createdBookings = <Booking>[];
+
       // Retry persisting latest payment setup at checkout time.
       // This ensures edits made while offline are saved once connection returns.
       await _persistPaymentSetup();
@@ -237,7 +242,8 @@ class PaymentViewModel extends ChangeNotifier {
         );
       }
 
-      for (final item in items) {
+      for (int i = 0; i < items.length; i++) {
+        final item = items[i];
         final booking = await _service.createBooking(
           courtId: item.courtId,
           facilityId: item.facilityId,
@@ -245,19 +251,31 @@ class PaymentViewModel extends ChangeNotifier {
           startHour: item.startHour,
           endHour: item.endHour,
         );
+        createdBookings.add(booking);
 
         final double slotAmount =
-            (item.pricePerSlot - (rewardDiscount / items.length))
-                .clamp(0, double.infinity);
+        (item.pricePerSlot - (rewardDiscount / items.length))
+            .clamp(0, double.infinity);
 
         await _service.createPayment(
           bookingId: booking.id,
           amount: slotAmount,
           method: _selectedMethod.dbValue,
         );
-        // Note: 10-minute booking reminders are fired server-side
-        // by the pg_cron job calling create_upcoming_booking_reminders().
-        // No client-side scheduling is needed here.
+
+        // Schedule local notification reminder (30 min before)
+        final slotStart = DateTime(
+          item.date.year,
+          item.date.month,
+          item.date.day,
+          item.startHour,
+        );
+        await LocalNotificationService.instance.scheduleBookingReminder(
+          id: booking.id.hashCode.abs() % 100000, // unique int id
+          facilityName: item.facilityName,
+          courtName: item.courtName,
+          slotStart: slotStart,
+        );
       }
 
       await RewardPointsViewModel.earnPoints(
@@ -265,6 +283,8 @@ class PaymentViewModel extends ChangeNotifier {
         description: 'Earned from booking at '
             '${items.isNotEmpty ? items.first.facilityName : "facility"}',
       );
+      await _cacheCreatedBookings(createdBookings);
+      await RewardPointsViewModel.refreshLocalCache();
 
       _status = PaymentStatus.success;
     } catch (e) {
@@ -273,6 +293,15 @@ class PaymentViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  Future<void> _cacheCreatedBookings(List<Booking> bookings) async {
+    if (bookings.isEmpty) return;
+    try {
+      await LocalBookingCache().saveBookings(bookings);
+    } catch (_) {
+      // Cache failure should not block successful payment.
+    }
   }
 
   void resetError() {
