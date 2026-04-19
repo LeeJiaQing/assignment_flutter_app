@@ -10,8 +10,12 @@ class NotificationDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final longBody = (item.data['long_body'] as String?)?.trim();
+    final detailText =
+        (longBody != null && longBody.isNotEmpty) ? longBody : item.body;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Announcement')),
+      appBar: AppBar(title: const Text('Notification Details')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -32,7 +36,7 @@ class NotificationDetailScreen extends StatelessWidget {
           const Divider(),
           const SizedBox(height: 16),
           Text(
-            item.body,
+            detailText,
             style: const TextStyle(
               fontSize: 14,
               color: Colors.black87,
