@@ -32,27 +32,30 @@ class BookingDetailScreen extends StatelessWidget {
     final booking = bookingWithFacility.booking;
 
     return ChangeNotifierProvider(
-      create: (_) => BookingViewModel(
-        bookingService: BookingService(
-          bookingRepository: BookingRepository(),
-          facilityRepository: FacilityRepository(),
-        ),
-      ),
-      child: Builder(builder: (context) {
-        return Scaffold(
-          backgroundColor: const Color(0xFFF4FAF6),
-          appBar: AppBar(
-            title: const Text('Booking Details'),
-            backgroundColor: const Color(0xFFF4FAF6),
+      create:
+          (_) => BookingViewModel(
+            bookingService: BookingService(
+              bookingRepository: BookingRepository(),
+              facilityRepository: FacilityRepository(),
+            ),
           ),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-            children: [
-              // ── QR Code Section ─────────────────────────────────────
-              if (booking.status == 'confirmed' || booking.status == 'checked_in') ...[
-                const SizedBox(height: 16),
-                _QrSection(bookingId: booking.id),
-              ],
+      child: Builder(
+        builder: (context) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF4FAF6),
+            appBar: AppBar(
+              title: const Text('Booking Details'),
+              backgroundColor: const Color(0xFFF4FAF6),
+            ),
+            body: SafeArea(
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).padding.bottom + 16),
+                children: [
+                  // ── QR Code Section ─────────────────────────────────────
+                  if (booking.status == 'confirmed' || booking.status == 'checked_in') ...[
+                    const SizedBox(height: 16),
+                    _QrSection(bookingId: booking.id),
+                  ],
 
                   // ── Status Banner for non-active bookings ────────────────
                   if (booking.status != 'confirmed') ...[
