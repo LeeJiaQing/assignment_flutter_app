@@ -6,7 +6,6 @@ import '../../core/di/app_dependencies.dart';
 import '../../models/facility_model.dart';
 import '../booking/booking_screen.dart';
 import '../facility/viewmodels/facility_view_model.dart';
-import 'viewmodels/navigation_view_model.dart';
 import 'viewmodels/home_view_model.dart';
 import '../facility/facility_detail_screen.dart';
 import '../notification/notification_screen.dart';
@@ -184,9 +183,7 @@ class _HomeViewState extends State<_HomeView> {
   }
 
   Widget _buildTrendySection(BuildContext context, FacilityViewModel vm) {
-    final sports = vm.categories.isEmpty
-        ? const ['Badminton', 'Basketball', 'Futsal', 'Pickleball']
-        : vm.categories;
+    final sports = vm.categories;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -202,40 +199,83 @@ class _HomeViewState extends State<_HomeView> {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: sports.map((sport) {
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () => context
-                      .read<NavigationViewModel>()
-                      .openFacilityWithCategory(sport),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-                      ),
-                    ),
-                    child: Text(
-                      sport,
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+          child: sports.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'No facility categories available yet.',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
+                )
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: sports.map((sport) {
+                    final isSelected = _selectedTrendyCategory == sport;
+                    return OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedTrendyCategory =
+                              isSelected ? null : sport;
+                        });
+                      },
+                      style: ButtonStyle(
+                        backgroundColor:
+                            MaterialStateProperty.resolveWith((states) {
+                          if (isSelected) return const Color(0xFF1C894E);
+                          if (states.contains(MaterialState.hovered)) {
+                            return const Color(0xFFEAF6EF);
+                          }
+                          return Colors.white;
+                        }),
+                        foregroundColor:
+                            MaterialStateProperty.resolveWith((states) {
+                          if (isSelected) return Colors.white;
+                          if (states.contains(MaterialState.hovered)) {
+                            return const Color(0xFF1C894E);
+                          }
+                          return Colors.black87;
+                        }),
+                        side: MaterialStateProperty.resolveWith((states) {
+                          if (isSelected) {
+                            return BorderSide.none;
+                          }
+                          if (states.contains(MaterialState.hovered)) {
+                            return const BorderSide(color: Color(0xFF6DCC98));
+                          }
+                          return BorderSide(color: Colors.grey.shade300);
+                        }),
+                        shape: MaterialStateProperty.all(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        padding: MaterialStateProperty.all(
+                          const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        overlayColor: MaterialStateProperty.resolveWith(
+                          (states) => isSelected
+                              ? Colors.white.withOpacity(0.14)
+                              : const Color(0xFF1C894E).withOpacity(0.08),
+                        ),
+                      ),
+                      child: Text(
+                        sport,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
-              );
-            }).toList(),
-          ),
         ),
       ],
     );
