@@ -26,6 +26,7 @@ class Facility {
   final int openHour;
   final int closeHour;
   final double pricePerSlot;
+  final String category;
   final List<Court> courts;
 
   const Facility({
@@ -36,6 +37,7 @@ class Facility {
     required this.openHour,
     required this.closeHour,
     required this.pricePerSlot,
+    this.category = 'Other',
     this.courts = const [],
   });
 
@@ -47,6 +49,7 @@ class Facility {
     openHour: json['open_hour'] as int,
     closeHour: json['close_hour'] as int,
     pricePerSlot: (json['price_per_slot'] as num).toDouble(),
+    category: (json['category'] as String?) ?? 'Other',
     courts: (json['courts'] as List<dynamic>? ?? [])
         .map((c) => Court.fromJson(c as Map<String, dynamic>))
         .toList(),
