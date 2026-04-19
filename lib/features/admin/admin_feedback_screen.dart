@@ -92,8 +92,8 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
         }
 
         entries.removeWhere((entry) {
-          if (entry.userId == null) return true;
-          return roleMap[entry.userId!] == 'admin';
+          if (entry.userId == null) return false;
+          return roleMap[entry.userId!]?.toLowerCase() == 'admin';
         });
 
         for (final entry in entries) {
@@ -101,8 +101,6 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
             entry.userName = nameMap[entry.userId!] ?? 'Unknown User';
           }
         }
-      } else {
-        entries.clear();
       }
 
       // Step 4: update state synchronously after all async work is done

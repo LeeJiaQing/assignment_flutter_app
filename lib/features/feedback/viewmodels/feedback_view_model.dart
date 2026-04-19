@@ -23,7 +23,13 @@ class FeedbackViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final userId = supabase.auth.currentUser?.id;
+      final user =
+          supabase.auth.currentSession?.user ?? supabase.auth.currentUser;
+      final userId = user?.id;
+
+      if (userId == null) {
+        throw Exception('You must be signed in before sending feedback.');
+      }
 
       await supabase.from('feedback').insert({
         'user_id': userId,
