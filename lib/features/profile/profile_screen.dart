@@ -105,18 +105,20 @@ class _ProfileViewState extends State<_ProfileView> {
                   ),
                 ),
               ),
-              ProfileMenuItem(
-                icon: Icons.calendar_today_outlined,
-                label: 'My Bookings',
-                onTap: () =>
-                    Navigator.pushNamed(context, '/bookings'),
-              ),
-              ProfileMenuItem(
-                icon: Icons.star_outline,
-                label: 'Reward Points',
-                onTap: () =>
-                    Navigator.pushNamed(context, '/rewards'),
-              ),
+              if (!_isAdmin)
+                ProfileMenuItem(
+                  icon: Icons.calendar_today_outlined,
+                  label: 'My Bookings',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/bookings'),
+                ),
+              if (!_isAdmin)
+                ProfileMenuItem(
+                  icon: Icons.star_outline,
+                  label: 'Reward Points',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/rewards'),
+                ),
               ProfileMenuItem(
                 icon: Icons.celebration_outlined,
                 label: 'Party',
@@ -145,7 +147,7 @@ class _ProfileViewState extends State<_ProfileView> {
               if (_isAdmin)
                 ProfileMenuItem(
                   icon: Icons.feedback_outlined,
-                  label: 'Feedback',
+                  label: 'View User Feedback',
                   trailing: const Icon(Icons.inbox_outlined,
                       color: Color(0xFF1C894E), size: 18),
                   onTap: () => Navigator.push(
