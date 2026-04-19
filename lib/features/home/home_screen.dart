@@ -6,6 +6,7 @@ import '../../core/di/app_dependencies.dart';
 import '../../models/facility_model.dart';
 import '../booking/booking_screen.dart';
 import '../facility/viewmodels/facility_view_model.dart';
+import 'viewmodels/navigation_view_model.dart';
 import 'viewmodels/home_view_model.dart';
 import '../facility/facility_detail_screen.dart';
 import '../notification/notification_screen.dart';
@@ -55,7 +56,7 @@ class _HomeView extends StatelessWidget {
               _buildSearchBar(context, vm),
 
               // ── Pick Trendy chips ────────────────────────────────────────
-              _buildTrendySection(),
+              _buildTrendySection(vm),
 
               // ── Near By You ─────────────────────────────────────────────
               if (vm.status == FacilityStatus.loaded &&
@@ -175,8 +176,10 @@ class _HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildTrendySection() {
-    const sports = ['Badminton', 'Basketball', 'Futsal', 'Squash'];
+  Widget _buildTrendySection(FacilityViewModel vm) {
+    final sports = vm.categories.isEmpty
+        ? const ['Badminton', 'Basketball', 'Futsal', 'Pickleball']
+        : vm.categories;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -197,28 +200,33 @@ class _HomeView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: sports.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, i) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: i == 0
-                    ? const Color(0xFF1C894E)
-                    : Colors.white,
+            itemBuilder: (_, i) {
+              return InkWell(
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: i == 0
-                      ? const Color(0xFF1C894E)
-                      : Colors.grey.shade300,
+                onTap: () => context
+                    .read<NavigationViewModel>()
+                    .openFacilityWithCategory(sports[i]),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.grey.shade300,
+                    ),
+                  ),
+                  child: Text(
+                    sports[i],
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
-              ),
-              child: Text(
-                sports[i],
-                style: TextStyle(
-                  color: i == 0 ? Colors.white : Colors.black87,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ],

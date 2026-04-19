@@ -2,9 +2,6 @@
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../../models/facility_model.dart';
 import '../supabase/supabase_config.dart';
 
@@ -30,6 +27,7 @@ class FacilityRepository {
       openHour: raw.openHour,
       closeHour: raw.closeHour,
       pricePerSlot: raw.pricePerSlot,
+      category: raw.category,
       courts: raw.courts,
     );
   }
@@ -63,8 +61,16 @@ class FacilityRepository {
 
     final response = await supabase
         .from('facilities')
-        .select(
-        'id, name, address, image_url, open_hour, close_hour, price_per_slot')
+        .select('''
+          id,
+          name,
+          address,
+          image_url,
+          open_hour,
+          close_hour,
+          price_per_slot,
+          category
+        ''')
         .inFilter('id', ids);
 
     return (response as List<dynamic>)
