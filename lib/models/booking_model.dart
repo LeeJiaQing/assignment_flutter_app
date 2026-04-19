@@ -30,8 +30,9 @@ class TimeSlot {
   }
 
   SlotStatus effectiveStatus(DateTime now) {
-    final slotEnd = DateTime(date.year, date.month, date.day, startHour);
-    if (!slotEnd.isAfter(now)) return SlotStatus.expired;
+    final slotStart = DateTime(date.year, date.month, date.day, startHour);
+    final localNow = now.toLocal();
+    if (!slotStart.isAfter(localNow)) return SlotStatus.expired;
     if (status == SlotStatus.booked) return SlotStatus.booked;
     return SlotStatus.available;
   }
