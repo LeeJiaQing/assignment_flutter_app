@@ -1,11 +1,11 @@
 // lib/core/services/notification_service.dart
 //
 // Handles:
-//  - Device token registration / refresh
+//  - Device push token registration / refresh
 //  - Scheduling in-app booking reminders (1 h before slot)
 //  - Inserting user_notifications rows directly when needed
 //
-// Push delivery is handled server-side via a Supabase Edge Function
+// Push delivery is handled server-side via Supabase
 // triggered by the notify_announcement_targets() / notify_party_joined()
 // database functions. This file only manages the client side.
 
@@ -17,7 +17,7 @@ class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
-  // ── Push token ─────────────────────────────────────────────────────────────
+  // ── Push token (Supabase-only) ────────────────────────────────────────────
 
   /// Call this after the user signs in and when a new push token is available.
   /// The app stores whatever token the caller provides.
@@ -27,7 +27,7 @@ class NotificationService {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      await supabase.from('fcm_tokens').upsert(
+      await supabase.from('push_tokens').upsert(
         {
           'user_id': userId,
           'token': token,
@@ -47,7 +47,7 @@ class NotificationService {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
       await supabase
-          .from('fcm_tokens')
+          .from('push_tokens')
           .delete()
           .eq('user_id', userId)
           .eq('token', token);

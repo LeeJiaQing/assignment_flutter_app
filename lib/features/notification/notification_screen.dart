@@ -196,89 +196,92 @@ class _NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: item.isRead ? Colors.white : const Color(0xFFF0FAF5),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: item.isRead
-                ? Colors.transparent
-                : const Color(0xFF1C894E).withOpacity(0.25),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: item.isRead ? Colors.white : const Color(0xFFF0FAF5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: item.isRead
+              ? Colors.transparent
+              : const Color(0xFF1C894E).withOpacity(0.25),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Icon
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: _iconBg,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(_icon, color: _iconColor, size: 22),
-            ),
-            const SizedBox(width: 12),
-
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _iconBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(_icon, color: _iconColor, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          style: TextStyle(
-                            fontWeight: item.isRead
-                                ? FontWeight.w500
-                                : FontWeight.bold,
-                            fontSize: 14,
-                            color: const Color(0xFF1C3A2A),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.title,
+                              style: TextStyle(
+                                fontWeight: item.isRead
+                                    ? FontWeight.w500
+                                    : FontWeight.bold,
+                                fontSize: 14,
+                                color: const Color(0xFF1C3A2A),
+                              ),
+                            ),
                           ),
-                        ),
+                          if (!item.isRead)
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF1C894E),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                        ],
                       ),
-                      if (!item.isRead)
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF1C894E),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.body,
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.black87, height: 1.4),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _formatDate(item.createdAt),
+                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.body,
-                    style: const TextStyle(
-                        fontSize: 13, color: Colors.black87, height: 1.4),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _formatDate(item.createdAt),
-                    style: const TextStyle(
-                        fontSize: 11, color: Colors.grey),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

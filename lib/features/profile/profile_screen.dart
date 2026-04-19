@@ -127,6 +127,13 @@ class _ProfileViewState extends State<_ProfileView> {
                   ),
                 ),
               ),
+              if (_isAdmin)
+                ProfileMenuItem(
+                  icon: Icons.manage_accounts_outlined,
+                  label: 'Manage Users',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/admin/users'),
+                ),
             ],
           ),
 
@@ -154,13 +161,6 @@ class _ProfileViewState extends State<_ProfileView> {
                   label: 'Send Feedback',
                   onTap: () =>
                       Navigator.pushNamed(context, '/feedback'),
-                ),
-              if (_isAdmin)
-                ProfileMenuItem(
-                  icon: Icons.manage_accounts_outlined,
-                  label: 'Manage Users',
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/admin/users'),
                 ),
               ProfileMenuItem(
                 icon: Icons.description_outlined,
