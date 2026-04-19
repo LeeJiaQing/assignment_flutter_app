@@ -208,35 +208,30 @@ class _HomeViewState extends State<_HomeView> {
             itemCount: sports.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (_, i) {
-              final isSelected = _selectedTrendyCategory == sports[i];
-              return InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: () {
-                  setState(() => _selectedTrendyCategory = sports[i]);
-                  context
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => context
                       .read<NavigationViewModel>()
-                      .openFacilityWithCategory(sports[i]);
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF1C894E)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected
-                          ? const Color(0xFF1C894E)
-                          : Colors.grey.shade300,
+                      .openFacilityWithCategory(sports[i]),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    sports[i],
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                    child: Text(
+                      sports[i],
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
