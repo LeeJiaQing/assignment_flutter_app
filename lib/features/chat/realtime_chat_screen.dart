@@ -77,10 +77,33 @@ class _ChatView extends StatelessWidget {
                 ],
               ),
             ),
+          if (vm.isShowingCached)
+            Container(
+              color: const Color(0xFFFFF7D6),
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: const Row(
+                children: [
+                  Icon(Icons.wifi_off_outlined,
+                      color: Color(0xFF8A6D1C), size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Offline mode — showing cached chat messages',
+                      style: TextStyle(
+                          color: Color(0xFF8A6D1C),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: vm.isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : vm.errorMessage != null
+                : vm.messages.isEmpty && vm.errorMessage != null
                 ? Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -110,7 +133,23 @@ class _ChatView extends StatelessWidget {
               child: Text('No messages yet.',
                   style: TextStyle(color: Colors.grey)),
             )
-                : _MessageList(messages: vm.messages),
+                : Column(
+              children: [
+                if (vm.errorMessage != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    color: const Color(0xFFFFF1F1),
+                    child: Text(
+                      vm.errorMessage!,
+                      style: const TextStyle(
+                          color: Color(0xFF9F3A38), fontSize: 12),
+                    ),
+                  ),
+                Expanded(child: _MessageList(messages: vm.messages)),
+              ],
+            ),
           ),
           // Hide input bar for admins
           if (!readOnly)

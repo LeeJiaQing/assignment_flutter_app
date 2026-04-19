@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/local/local_chat_cache.dart';
 import '../../../core/supabase/supabase_config.dart';
 
 class ChatMessage {
@@ -49,9 +50,11 @@ class ChatViewModel extends ChangeNotifier {
   ChatViewModel({required this.channelId});
 
   final String channelId;
+  final LocalChatCache _cache = LocalChatCache();
 
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
+  bool _isShowingCached = false;
   String? _errorMessage;
 
   RealtimeChannel? _realtimeChannel;
@@ -59,6 +62,7 @@ class ChatViewModel extends ChangeNotifier {
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   bool get isLoading => _isLoading;
+  bool get isShowingCached => _isShowingCached;
   String? get errorMessage => _errorMessage;
 
   @override
@@ -149,9 +153,31 @@ class ChatViewModel extends ChangeNotifier {
         ..removeWhere((m) => m.id.startsWith('optimistic_'))
         ..clear();
       _messages.addAll(fetched);
+      await _cache.saveMessages(
+        channelId: channelId,
+        messages: fetched.map(_toCacheRow).toList(),
+      );
+      _isShowingCached = false;
       _errorMessage = null;
     } catch (e) {
-      _errorMessage = e.toString();
+      final cachedRows = await _cache.getMessages(
+        channelId: channelId,
+        ignoreExpiry: true,
+      );
+      if (cachedRows.isNotEmpty) {
+        final cached = cachedRows
+            .map(ChatMessage.fromJson)
+            .toList();
+        _messages
+          ..removeWhere((m) => m.id.startsWith('optimistic_'))
+          ..clear();
+        _messages.addAll(cached);
+        _isShowingCached = true;
+        _errorMessage = null;
+      } else {
+        _isShowingCached = false;
+        _errorMessage = e.toString();
+      }
     }
   }
 
@@ -227,9 +253,23 @@ class ChatViewModel extends ChangeNotifier {
       await _fetchMessages();
       notifyListeners();
     } catch (e) {
-      _messages.removeWhere((m) => m.id == optimisticId);
-      _errorMessage = e.toString();
+      final pending = _messages
+          .firstWhere((m) => m.id == optimisticId);
+      await _cache.upsertMessage(
+        channelId: channelId,
+        message: _toCacheRow(pending),
+      );
+      _errorMessage =
+          'Message saved locally. It will be visible offline until internet returns.';
       notifyListeners();
     }
   }
+
+  Map<String, dynamic> _toCacheRow(ChatMessage m) => {
+        'id': m.id,
+        'sender_id': m.senderId,
+        'sender_name': m.senderName,
+        'content': m.content,
+        'created_at': m.createdAt.toIso8601String(),
+      };
 }

@@ -31,7 +31,7 @@ class LocalDatabase {
 
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -123,6 +123,18 @@ class LocalDatabase {
         cached_at INTEGER NOT NULL
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE chat_message_cache (
+        id TEXT PRIMARY KEY,
+        channel_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        sender_name TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        cached_at INTEGER NOT NULL
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -164,6 +176,20 @@ class LocalDatabase {
           user_id TEXT NOT NULL,
           points INTEGER NOT NULL,
           description TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          cached_at INTEGER NOT NULL
+        )
+      ''');
+    }
+
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS chat_message_cache (
+          id TEXT PRIMARY KEY,
+          channel_id TEXT NOT NULL,
+          sender_id TEXT NOT NULL,
+          sender_name TEXT NOT NULL,
+          content TEXT NOT NULL,
           created_at TEXT NOT NULL,
           cached_at INTEGER NOT NULL
         )
