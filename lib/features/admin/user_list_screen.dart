@@ -27,6 +27,7 @@ class _UserListScreenState extends State<UserListScreen> {
     final response = await supabase
         .from('profiles')
         .select()
+        .neq('role', 'admin')
         .order('full_name');
 
     return (response as List<dynamic>)
@@ -136,33 +137,16 @@ class _UserTile extends StatelessWidget {
               ),
             ),
           ),
-          if (!user.isAdmin)
-            IconButton(
-              tooltip: 'Bookings',
-              icon: const Icon(Icons.event_note_outlined, color: Color(0xFF1C894E)),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => UserBookingsScreen(user: user),
-                ),
+          IconButton(
+            tooltip: 'Bookings',
+            icon: const Icon(Icons.event_note_outlined, color: Color(0xFF1C894E)),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => UserBookingsScreen(user: user),
               ),
             ),
-          if (user.isAdmin)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD6F0E0),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                'Admin',
-                style: TextStyle(
-                    color: Color(0xFF1C894E),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold),
-              ),
-            ),
+          ),
           const SizedBox(width: 4),
           const Icon(Icons.chevron_right, color: Colors.grey),
         ],
