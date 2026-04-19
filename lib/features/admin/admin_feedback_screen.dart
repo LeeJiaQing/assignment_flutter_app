@@ -79,16 +79,13 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
       if (userIds.isNotEmpty) {
         final profilesResponse = await supabase
             .from('profiles')
-            .select('id, full_name, role')
+            .select('id, full_name')
             .inFilter('id', userIds);
 
         final nameMap = <String, String>{};
-        final roleMap = <String, String>{};
         for (final p in profilesResponse as List<dynamic>) {
           nameMap[p['id'] as String] =
               (p['full_name'] as String?) ?? 'Unknown User';
-          roleMap[p['id'] as String] =
-              (p['role'] as String?) ?? 'user';
         }
 
         entries.removeWhere((entry) {
