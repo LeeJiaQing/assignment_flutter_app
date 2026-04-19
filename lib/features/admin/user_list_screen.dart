@@ -137,7 +137,7 @@ class _UserTile extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: 'User bookings',
+            tooltip: 'Bookings',
             icon: const Icon(Icons.event_note_outlined, color: Color(0xFF1C894E)),
             onPressed: () => Navigator.push(
               context,
