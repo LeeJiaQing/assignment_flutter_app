@@ -1,11 +1,11 @@
 // lib/core/services/notification_service.dart
 //
 // Handles:
-//  - FCM device token registration / refresh
+//  - Device token registration / refresh
 //  - Scheduling in-app booking reminders (1 h before slot)
 //  - Inserting user_notifications rows directly when needed
 //
-// Push delivery (FCM) is handled server-side via a Supabase Edge Function
+// Push delivery is handled server-side via a Supabase Edge Function
 // triggered by the notify_announcement_targets() / notify_party_joined()
 // database functions. This file only manages the client side.
 
@@ -17,11 +17,10 @@ class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
-  // ── FCM Token ──────────────────────────────────────────────────────────────
+  // ── Push token ─────────────────────────────────────────────────────────────
 
-  /// Call this after the user signs in and after Firebase gives a new token.
-  /// On Android/iOS this integrates with firebase_messaging; here we store
-  /// whatever token the caller provides (or a stub in debug).
+  /// Call this after the user signs in and when a new push token is available.
+  /// The app stores whatever token the caller provides.
   Future<void> registerToken(String token,
       {String platform = 'android'}) async {
     try {

@@ -370,13 +370,10 @@ class _PaymentDetailsRows extends StatelessWidget {
 
   Future<Map<String, dynamic>?> _loadPaymentRow() async {
     try {
-      final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return null;
       final rows = await supabase
           .from('payments')
           .select('method')
           .eq('booking_id', bookingId)
-          .eq('user_id', userId)
           .order('created_at', ascending: false)
           .limit(1);
       if ((rows as List<dynamic>).isEmpty) return null;
