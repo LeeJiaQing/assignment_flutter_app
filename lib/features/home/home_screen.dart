@@ -34,8 +34,15 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class _HomeView extends StatelessWidget {
+class _HomeView extends StatefulWidget {
   const _HomeView();
+
+  @override
+  State<_HomeView> createState() => _HomeViewState();
+}
+
+class _HomeViewState extends State<_HomeView> {
+  String? _selectedTrendyCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +63,7 @@ class _HomeView extends StatelessWidget {
               _buildSearchBar(context, vm),
 
               // ── Pick Trendy chips ────────────────────────────────────────
-              _buildTrendySection(vm),
+              _buildTrendySection(context, vm),
 
               // ── Near By You ─────────────────────────────────────────────
               if (vm.status == FacilityStatus.loaded &&
@@ -176,7 +183,7 @@ class _HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildTrendySection(FacilityViewModel vm) {
+  Widget _buildTrendySection(BuildContext context, FacilityViewModel vm) {
     final sports = vm.categories.isEmpty
         ? const ['Badminton', 'Basketball', 'Futsal', 'Pickleball']
         : vm.categories;
@@ -201,25 +208,33 @@ class _HomeView extends StatelessWidget {
             itemCount: sports.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (_, i) {
+              final isSelected = _selectedTrendyCategory == sports[i];
               return InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: () => context
-                    .read<NavigationViewModel>()
-                    .openFacilityWithCategory(sports[i]),
+                onTap: () {
+                  setState(() => _selectedTrendyCategory = sports[i]);
+                  context
+                      .read<NavigationViewModel>()
+                      .openFacilityWithCategory(sports[i]);
+                },
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isSelected
+                        ? const Color(0xFF1C894E)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.grey.shade300,
+                      color: isSelected
+                          ? const Color(0xFF1C894E)
+                          : Colors.grey.shade300,
                     ),
                   ),
                   child: Text(
                     sports[i],
                     style: TextStyle(
-                      color: Colors.black87,
+                      color: isSelected ? Colors.white : Colors.black87,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
