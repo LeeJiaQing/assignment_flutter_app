@@ -6,6 +6,7 @@ import '../../core/di/app_dependencies.dart';
 import '../../models/facility_model.dart';
 import '../booking/booking_screen.dart';
 import '../facility/viewmodels/facility_view_model.dart';
+import 'viewmodels/navigation_view_model.dart';
 import 'viewmodels/home_view_model.dart';
 import '../facility/facility_detail_screen.dart';
 import '../notification/notification_screen.dart';
@@ -200,29 +201,25 @@ class _HomeView extends StatelessWidget {
             itemCount: sports.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (_, i) {
-              final isSelected = vm.selectedCategory?.toLowerCase() ==
-                  sports[i].toLowerCase();
               return InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: () => vm.toggleCategory(sports[i]),
+                onTap: () => context
+                    .read<NavigationViewModel>()
+                    .openFacilityWithCategory(sports[i]),
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF1C894E)
-                        : Colors.white,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isSelected
-                          ? const Color(0xFF1C894E)
-                          : Colors.grey.shade300,
+                      color: Colors.grey.shade300,
                     ),
                   ),
                   child: Text(
                     sports[i],
                     style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
+                      color: Colors.black87,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),

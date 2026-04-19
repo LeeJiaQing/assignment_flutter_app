@@ -76,4 +76,9 @@ class FacilityViewModel extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  void setCategoryFilter(String? category) {
+    _selectedCategory = category;
+    notifyListeners();
+  }
 }

@@ -11,10 +11,14 @@ class NavigationViewModel extends ChangeNotifier {
 
   int _currentIndex = 0;
   UserRole? _role;
+  String? _requestedFacilityCategory;
+  int _facilityFilterRequestToken = 0;
 
   int get currentIndex => _currentIndex;
   bool get isLoading => _role == null;
   bool get isAdmin => _role == UserRole.admin;
+  String? get requestedFacilityCategory => _requestedFacilityCategory;
+  int get facilityFilterRequestToken => _facilityFilterRequestToken;
 
   Future<void> initialize() async {
     _role = await _authRepository.getCurrentUserRole();
@@ -60,5 +64,16 @@ class NavigationViewModel extends ChangeNotifier {
     if (_currentIndex >= pageCount) {
       _currentIndex = 0;
     }
+  }
+
+  void openFacilityWithCategory(String category) {
+    _requestedFacilityCategory = category;
+    _facilityFilterRequestToken++;
+    _currentIndex = 1; // Facility tab for both admin and normal users
+    notifyListeners();
+  }
+
+  void clearRequestedFacilityCategory() {
+    _requestedFacilityCategory = null;
   }
 }
