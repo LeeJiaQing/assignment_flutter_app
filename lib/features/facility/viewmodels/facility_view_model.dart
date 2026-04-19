@@ -15,20 +15,31 @@ class FacilityViewModel extends ChangeNotifier {
   FacilityStatus _status = FacilityStatus.initial;
   List<Facility> _facilities = [];
   String _query = '';
+  String? _selectedCategory;
   String? _errorMessage;
 
   FacilityStatus get status => _status;
   String? get errorMessage => _errorMessage;
   String get query => _query;
+  String? get selectedCategory => _selectedCategory;
+  List<String> get categories => _facilities
+      .map((f) => f.category)
+      .where((c) => c.trim().isNotEmpty)
+      .toSet()
+      .toList()
+    ..sort();
 
   List<Facility> get filteredFacilities {
-    if (_query.trim().isEmpty) return _facilities;
     final q = _query.toLowerCase();
-    return _facilities
-        .where((f) =>
-    f.name.toLowerCase().contains(q) ||
-        f.address.toLowerCase().contains(q))
-        .toList();
+    return _facilities.where((f) {
+      final textMatches = q.isEmpty ||
+          f.name.toLowerCase().contains(q) ||
+          f.address.toLowerCase().contains(q) ||
+          f.category.toLowerCase().contains(q);
+      final categoryMatches = _selectedCategory == null ||
+          f.category.toLowerCase() == _selectedCategory!.toLowerCase();
+      return textMatches && categoryMatches;
+    }).toList();
   }
 
   Future<void> loadFacilities() async {
@@ -54,6 +65,15 @@ class FacilityViewModel extends ChangeNotifier {
 
   void clearQuery() {
     _query = '';
+    notifyListeners();
+  }
+
+  void toggleCategory(String category) {
+    if (_selectedCategory?.toLowerCase() == category.toLowerCase()) {
+      _selectedCategory = null;
+    } else {
+      _selectedCategory = category;
+    }
     notifyListeners();
   }
 }

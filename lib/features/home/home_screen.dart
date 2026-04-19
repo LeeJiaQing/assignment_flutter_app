@@ -55,7 +55,7 @@ class _HomeView extends StatelessWidget {
               _buildSearchBar(context, vm),
 
               // ── Pick Trendy chips ────────────────────────────────────────
-              _buildTrendySection(),
+              _buildTrendySection(vm),
 
               // ── Near By You ─────────────────────────────────────────────
               if (vm.status == FacilityStatus.loaded &&
@@ -175,8 +175,10 @@ class _HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildTrendySection() {
-    const sports = ['Badminton', 'Basketball', 'Futsal', 'Squash'];
+  Widget _buildTrendySection(FacilityViewModel vm) {
+    final sports = vm.categories.isEmpty
+        ? const ['Badminton', 'Basketball', 'Futsal', 'Pickleball']
+        : vm.categories;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -197,28 +199,37 @@ class _HomeView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: sports.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, i) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: i == 0
-                    ? const Color(0xFF1C894E)
-                    : Colors.white,
+            itemBuilder: (_, i) {
+              final isSelected = vm.selectedCategory?.toLowerCase() ==
+                  sports[i].toLowerCase();
+              return InkWell(
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: i == 0
-                      ? const Color(0xFF1C894E)
-                      : Colors.grey.shade300,
+                onTap: () => vm.toggleCategory(sports[i]),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFF1C894E)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFF1C894E)
+                          : Colors.grey.shade300,
+                    ),
+                  ),
+                  child: Text(
+                    sports[i],
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
-              ),
-              child: Text(
-                sports[i],
-                style: TextStyle(
-                  color: i == 0 ? Colors.white : Colors.black87,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ],
