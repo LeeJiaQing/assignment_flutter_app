@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/repositories/auth_repository.dart';
 import '../../models/notification_model.dart';
 import 'notification_detail_screen.dart';
 import 'viewmodels/notification_view_model.dart';
@@ -21,16 +22,35 @@ class NotificationScreen extends StatelessWidget {
   }
 }
 
-class _NotificationView extends StatelessWidget {
+class _NotificationView extends StatefulWidget {
   const _NotificationView({required this.showAppBar});
   final bool showAppBar;
+
+  @override
+  State<_NotificationView> createState() => _NotificationViewState();
+}
+
+class _NotificationViewState extends State<_NotificationView> {
+  bool _isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRole();
+  }
+
+  Future<void> _checkRole() async {
+    final role = await AuthRepository().getCurrentUserRole();
+    if (!mounted) return;
+    setState(() => _isAdmin = role == UserRole.admin);
+  }
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<NotificationViewModel>();
 
     return Scaffold(
-      appBar: showAppBar
+      appBar: widget.showAppBar
           ? AppBar(
         title: Row(
           children: [
@@ -114,23 +134,31 @@ class _NotificationView extends StatelessWidget {
               .loadNotifications(),
           child: ListView.builder(
             padding: const EdgeInsets.all(12),
-            itemCount: vm.notifications.length,
-            itemBuilder: (_, i) => _NotificationTile(
-              item: vm.notifications[i],
-              onTap: () async {
-                final item = vm.notifications[i];
-                await context
-                    .read<NotificationViewModel>()
-                    .markRead(item.id);
-                if (!context.mounted) return;
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => NotificationDetailScreen(item: item),
-                  ),
+            itemCount: vm.notifications.length + (_isAdmin ? 1 : 0),
+            itemBuilder: (_, i) {
+              if (_isAdmin && i == vm.notifications.length) {
+                return _NewAnnouncementButton(
+                  onTap: () => Navigator.pushNamed(context, '/admin/announcement'),
                 );
-              },
-            ),
+              }
+
+              return _NotificationTile(
+                item: vm.notifications[i],
+                onTap: () async {
+                  final item = vm.notifications[i];
+                  await context
+                      .read<NotificationViewModel>()
+                      .markRead(item.id);
+                  if (!context.mounted) return;
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => NotificationDetailScreen(item: item),
+                    ),
+                  );
+                },
+              );
+            },
           ),
         ),
       },
@@ -268,6 +296,8 @@ class _NotificationTile extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         item.body,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: 13, color: Colors.black87, height: 1.4),
                       ),
@@ -282,6 +312,29 @@ class _NotificationTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NewAnnouncementButton extends StatelessWidget {
+  const _NewAnnouncementButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 8),
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.add_alert_outlined),
+        label: const Text('New Announcement'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF1C894E),
+          side: const BorderSide(color: Color(0xFF1C894E)),
+          minimumSize: const Size.fromHeight(48),
         ),
       ),
     );
