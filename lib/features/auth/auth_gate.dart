@@ -1,6 +1,4 @@
 // lib/features/auth/auth_gate.dart
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../core/supabase/supabase_config.dart';
@@ -10,7 +8,6 @@ import '../../core/repositories/auth_repository.dart';
 import '../../core/local/local_database.dart';
 import '../../core/repositories/offline_booking_repository.dart';
 import '../../core/services/connectivity_service.dart';
-import '../../core/services/notification_service.dart';
 import '../../core/services/sync_service.dart';
 
 class AuthGate extends StatefulWidget {
@@ -22,23 +19,11 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   bool _isInitializing = true;
-  late final StreamSubscription _authSubscription;
 
   @override
   void initState() {
     super.initState();
-    _authSubscription = supabase.auth.onAuthStateChange.listen((event) async {
-      if (event.session != null) {
-        await NotificationService.instance.syncTokenForCurrentUser();
-      }
-    });
     _init();
-  }
-
-  @override
-  void dispose() {
-    _authSubscription.cancel();
-    super.dispose();
   }
 
   Future<void> _init() async {
