@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/supabase/supabase_config.dart';
 import '../chat/realtime_chat_screen.dart';
 import '../../models/user_model.dart';
+import 'user_bookings_screen.dart';
 import 'user_details_screen.dart';
 
 class UserListScreen extends StatefulWidget {
@@ -134,6 +135,15 @@ class _UserTile extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => UserBookingsScreen(user: user),
+              ),
+            ),
+            child: const Text('User Booking'),
           ),
           if (user.isAdmin)
             Container(

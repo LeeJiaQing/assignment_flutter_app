@@ -12,9 +12,14 @@ import 'viewmodels/booking_view_model.dart';
 import 'widgets/facility_thumb.dart';
 
 class BookingDetailScreen extends StatelessWidget {
-  const BookingDetailScreen({super.key, required this.bookingWithFacility});
+  const BookingDetailScreen({
+    super.key,
+    required this.bookingWithFacility,
+    this.allowCancel = true,
+  });
 
   final BookingWithFacility bookingWithFacility;
+  final bool allowCancel;
 
   String _fmt(int h) {
     final suffix = h < 12 ? 'AM' : 'PM';
@@ -103,12 +108,13 @@ class BookingDetailScreen extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // ── Cancel Button ─────────────────────────────────────────
-                  if (BookingViewModel.canCancel(bookingWithFacility))
+                  if (allowCancel && BookingViewModel.canCancel(bookingWithFacility))
                     _CancelButton(
                       onCancel: () => _handleCancel(context, booking.id),
                     ),
 
-                  if (booking.status == 'confirmed' &&
+                  if (allowCancel &&
+                      booking.status == 'confirmed' &&
                       !BookingViewModel.canCancel(bookingWithFacility))
                     Container(
                       padding: const EdgeInsets.all(12),
