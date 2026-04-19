@@ -136,14 +136,15 @@ class _UserTile extends StatelessWidget {
               ),
             ),
           ),
-          TextButton(
+          IconButton(
+            tooltip: 'User bookings',
+            icon: const Icon(Icons.event_note_outlined, color: Color(0xFF1C894E)),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => UserBookingsScreen(user: user),
               ),
             ),
-            child: const Text('User Booking'),
           ),
           if (user.isAdmin)
             Container(
