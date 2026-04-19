@@ -1,5 +1,7 @@
 // lib/core/repositories/facility_repository.dart
 import 'dart:typed_data';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
