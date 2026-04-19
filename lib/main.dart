@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'core/di/app_dependencies.dart';
 import 'core/local/local_database.dart';
+import 'core/local/local_notification_service.dart';
 import 'core/repositories/auth_repository.dart';
 import 'core/repositories/facility_repository.dart';
 import 'core/repositories/offline_facility_repository.dart';
@@ -45,6 +46,8 @@ void main() async {
   SyncService.instance.init(
     bookingRepository: OfflineBookingRepository(),
   );
+
+  await LocalNotificationService.instance.init();
 
   runApp(const MainApp());
 }
