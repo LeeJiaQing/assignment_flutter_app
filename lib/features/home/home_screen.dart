@@ -41,8 +41,6 @@ class _HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<_HomeView> {
-  String? _selectedTrendyCategory;
-
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<FacilityViewModel>();
