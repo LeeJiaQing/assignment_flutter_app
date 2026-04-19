@@ -47,7 +47,7 @@ void main() async {
     bookingRepository: OfflineBookingRepository(),
   );
 
-  await LocalNotificationService.instance.init();
+  // await LocalNotificationService.instance.init();
 
   runApp(const MainApp());
 }
