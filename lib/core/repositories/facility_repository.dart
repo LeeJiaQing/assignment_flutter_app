@@ -22,14 +22,13 @@ class FacilityRepository {
     required String facilityId,
     required List<String> courtNames,
   }) async {
-    await supabase.from('courts').delete().eq('facility_id', facilityId);
-
-    if (courtNames.isEmpty) return;
-
-    final rows = courtNames
-        .map((name) => {'facility_id': facilityId, 'name': name})
-        .toList();
-    await supabase.from('courts').insert(rows);
+    await supabase.rpc(
+      'set_facility_courts',
+      params: {
+        'p_facility_id': facilityId,
+        'p_court_names': courtNames,
+      },
+    );
   }
 
   /// Converts a stored path (e.g. "court1.jpg") into a public URL.

@@ -175,7 +175,7 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
       'close_hour': int.parse(_closeHourController.text.trim()),
       'price_per_slot': double.parse(_priceController.text.trim()),
       'court_names':
-          List<String>.generate(courtCount, (index) => '${index + 1}'),
+          List<String>.generate(courtCount, (index) => 'Court ${index + 1}'),
     });
 
     if (!context.mounted) return;

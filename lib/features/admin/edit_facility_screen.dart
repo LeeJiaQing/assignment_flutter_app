@@ -1,4 +1,6 @@
 // lib/features/admin/edit_facility_screen.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -130,21 +132,25 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       height: 140,
-                      child: (widget.facility.imageUrl ?? '').isNotEmpty &&
-                              !_clearExistingImage &&
-                              _selectedImage == null
-                          ? Image.network(
-                              widget.facility.imageUrl!,
+                      child: _selectedImage != null
+                          ? Image.file(
+                              File(_selectedImage!.path),
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Image.asset(
-                                'assets/images/logo.png',
-                                fit: BoxFit.contain,
-                              ),
                             )
-                          : Image.asset(
-                              'assets/images/logo.png',
-                              fit: BoxFit.contain,
-                            ),
+                          : (widget.facility.imageUrl ?? '').isNotEmpty &&
+                                  !_clearExistingImage
+                              ? Image.network(
+                                  widget.facility.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Image.asset(
+                                    'assets/images/logo.png',
+                                    fit: BoxFit.contain,
+                                  ),
+                                )
+                              : Image.asset(
+                                  'assets/images/logo.png',
+                                  fit: BoxFit.contain,
+                                ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -276,7 +282,7 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
       'close_hour': int.parse(_closeHourController.text.trim()),
       'price_per_slot': double.parse(_priceController.text.trim()),
       'court_names':
-          List<String>.generate(courtCount, (index) => '${index + 1}'),
+          List<String>.generate(courtCount, (index) => 'Court ${index + 1}'),
     });
 
     if (!context.mounted) return;
