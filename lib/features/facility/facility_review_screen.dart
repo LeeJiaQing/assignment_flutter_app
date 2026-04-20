@@ -272,9 +272,11 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
     if (success) {
       Navigator.pop(context);
     } else {
+      final error = context.read<FacilityReviewViewModel>().errorMessage;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to submit review. Please try again.'),
+        SnackBar(
+          content: Text(error ?? 'Failed to submit review. Please try again.'),
           backgroundColor: Colors.red,
         ),
       );

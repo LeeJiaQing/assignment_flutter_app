@@ -286,6 +286,7 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
     });
 
     if (!context.mounted) return;
+
     if (success) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -294,8 +295,14 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
           backgroundColor: Color(0xFF1C894E),
         ),
       );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(vm.errorMessage ?? 'Update failed'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-    // On failure, vm.errorMessage is shown in the UI above the button.
   }
 }
 
