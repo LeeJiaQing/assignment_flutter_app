@@ -22,23 +22,34 @@ class FacilityRepository {
     required String facilityId,
     required List<String> courtNames,
   }) async {
-    try {
-      await supabase.rpc(
-        'set_facility_courts',
-        params: {
-          'p_facility_id': facilityId,
-          'p_court_names': courtNames,
-        },
-      );
+    final desiredCount = courtNames.length;
+    final currentRows = await supabase
+        .from('courts')
+        .select('name')
+        .eq('facility_id', facilityId);
+    final currentCount = (currentRows as List<dynamic>).length;
+
+    if (desiredCount == currentCount) {
       return;
-    } on PostgrestException catch (e) {
-      // Fallback for environments where the RPC migration is not applied yet.
-      if (e.code != 'PGRST202') rethrow;
     }
 
-    await supabase.from('courts').delete().eq('facility_id', facilityId);
-    if (courtNames.isEmpty) return;
-    final rows = courtNames
+    if (desiredCount < currentCount) {
+      final namesToDelete = List<String>.generate(
+        currentCount - desiredCount,
+        (index) => 'Court ${desiredCount + index + 1}',
+      );
+      await supabase
+          .from('courts')
+          .delete()
+          .eq('facility_id', facilityId)
+          .inFilter('name', namesToDelete);
+      return;
+    }
+
+    final rows = List<String>.generate(
+      desiredCount - currentCount,
+      (index) => 'Court ${currentCount + index + 1}',
+    )
         .map((name) => {'facility_id': facilityId, 'name': name})
         .toList();
     await supabase.from('courts').insert(rows);
