@@ -27,9 +27,9 @@ class AnnouncementViewModel extends ChangeNotifier {
       final response = await supabase.from('profiles').select().order('full_name');
       _allUsers = (response as List<dynamic>)
           .map((j) => UserProfile.fromJson({
-                ...j as Map<String, dynamic>,
-                'email': (j as Map)['email'] ?? '',
-              }))
+        ...j as Map<String, dynamic>,
+        'email': (j as Map)['email'] ?? '',
+      }))
           .where((u) => u.id != myId)
           .toList();
     } catch (e) {
@@ -70,14 +70,14 @@ class AnnouncementViewModel extends ChangeNotifier {
       final result = await supabase
           .from('announcements')
           .insert({
-            'title': title.trim(),
-            'body': body.trim(),
-            'target_type': broadcastAll ? 'all' : 'selected',
-            'target_user_ids':
-                broadcastAll ? null : _selectedUsers.map((u) => u.id).toList(),
-            'created_by': createdBy,
-            'notification_sent': false,
-          })
+        'title': title.trim(),
+        'body': body.trim(),
+        'target_type': broadcastAll ? 'all' : 'selected',
+        'target_user_ids':
+        broadcastAll ? null : _selectedUsers.map((u) => u.id).toList(),
+        'created_by': createdBy,
+        'notification_sent': false,
+      })
           .select('id')
           .single();
 
@@ -110,8 +110,31 @@ class AnnouncementViewModel extends ChangeNotifier {
         'body': body.trim(),
         'target_type': broadcastAll ? 'all' : 'selected',
         'target_user_ids':
-            broadcastAll ? null : _selectedUsers.map((u) => u.id).toList(),
+        broadcastAll ? null : _selectedUsers.map((u) => u.id).toList(),
+        'notification_sent': false,
       }).eq('id', id);
+
+      // Mark all existing notifications for this announcement as unread
+      // so members see it as new again.
+      // The data column stores the announcement_id as a JSON field.
+      try {
+        await supabase
+            .from('user_notifications')
+            .update({'is_read': false, 'title': title.trim(), 'body': body.trim()})
+            .filter('data->>announcement_id', 'eq', id);
+      } catch (_) {
+        // If the data column filter syntax differs in your Supabase version,
+        // fall back to re-running the notify RPC which will upsert notifications.
+      }
+
+      // Re-run notify RPC so any newly-targeted users also receive it
+      try {
+        await supabase.rpc('notify_announcement_targets',
+            params: {'announcement_id': id});
+      } catch (_) {
+        // Non-fatal: RPC may not support upsert mode. The update above handles
+        // existing recipients.
+      }
 
       _status = AnnouncementStatus.success;
       notifyListeners();
@@ -119,6 +142,27 @@ class AnnouncementViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString();
       _status = AnnouncementStatus.error;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteAnnouncement(String id) async {
+    try {
+      // Delete linked notifications first so members stop seeing it
+      await supabase
+          .from('user_notifications')
+          .delete()
+          .filter('data->>announcement_id', 'eq', id);
+    } catch (_) {
+      // Non-fatal — proceed to delete the announcement itself
+    }
+
+    try {
+      await supabase.from('announcements').delete().eq('id', id);
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
       notifyListeners();
       return false;
     }

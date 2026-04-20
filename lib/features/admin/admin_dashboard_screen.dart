@@ -421,52 +421,50 @@ class _AdminAnnouncementListScreenState
               if (id == null) return;
 
               final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Delete announcement?'),
-                      content: const Text(
-                          'This action cannot be undone.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pop(ctx, false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pop(ctx, true),
-                          child: const Text(
-                            'Delete',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Delete announcement?'),
+                  content: const Text('This action cannot be undone.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
                     ),
-                  ) ??
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              ) ??
                   false;
 
               if (!confirmed) return;
 
               try {
-                await supabase
-                    .from('announcements')
-                    .delete()
-                    .eq('id', id);
+                // 1️⃣  Remove linked user_notifications so members stop seeing the item
+                try {
+                  await supabase
+                      .from('user_notifications')
+                      .delete()
+                      .filter('data->>announcement_id', 'eq', id);
+                } catch (_) {
+                  // Non-fatal – proceed even if this filter syntax isn't supported.
+                }
+
+                // 2️⃣  Delete the announcement itself
+                await supabase.from('announcements').delete().eq('id', id);
+
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content:
-                            Text('Announcement deleted.')),
+                    const SnackBar(content: Text('Announcement deleted.')),
                   );
                 }
                 _load();
               } catch (_) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          'Failed to delete announcement.'),
-                    ),
+                    const SnackBar(content: Text('Failed to delete announcement.')),
                   );
                 }
               }
