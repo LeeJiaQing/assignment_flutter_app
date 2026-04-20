@@ -270,12 +270,16 @@ class PaymentViewModel extends ChangeNotifier {
           item.date.day,
           item.startHour,
         );
-        await LocalNotificationService.instance.scheduleBookingReminder(
-          id: booking.id.hashCode.abs() % 100000, // unique int id
-          facilityName: item.facilityName,
-          courtName: item.courtName,
-          slotStart: slotStart,
-        );
+        try {
+          await LocalNotificationService.instance.scheduleBookingReminder(
+            id: booking.id.hashCode.abs() % 100000,
+            facilityName: item.facilityName,
+            courtName: item.courtName,
+            slotStart: slotStart,
+          );
+        } catch (_) {
+
+        }
       }
 
       await RewardPointsViewModel.earnPoints(

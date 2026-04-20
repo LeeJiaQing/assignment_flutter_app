@@ -102,6 +102,7 @@ class BookingDetailScreen extends StatelessWidget {
                       _PaymentDetailsRows(
                         bookingId: booking.id,
                         booking: booking,
+                        bookingUserId: booking.userId,
                       ),
                     ],
                   ),
@@ -363,10 +364,15 @@ class _StatusBanner extends StatelessWidget {
 // ── Payment Details ────────────────────────────────────────────────────────
 
 class _PaymentDetailsRows extends StatelessWidget {
-  const _PaymentDetailsRows({required this.bookingId, required this.booking});
+  const _PaymentDetailsRows({
+    required this.bookingId,
+    required this.booking,
+    this.bookingUserId,
+  });
 
   final String bookingId;
   final Booking booking;
+  final String? bookingUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -404,7 +410,7 @@ class _PaymentDetailsRows extends StatelessWidget {
 
   Future<Map<String, dynamic>?> _loadPaymentRow() async {
     try {
-      final userId = supabase.auth.currentUser?.id;
+      final userId = bookingUserId ?? supabase.auth.currentUser?.id;
       if (userId == null) return null;
       final rows = await supabase
           .from('payments')
