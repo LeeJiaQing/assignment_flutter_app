@@ -105,7 +105,7 @@ class PartyViewModel extends ChangeNotifier {
             'facilities!party_sessions_facility_id_fkey(name), '
             'profiles!party_sessions_host_id_fkey(full_name)',
       )
-          .order('date', ascending: true);
+          .order('date', ascending: false).order('start_hour', ascending: false);
 
       _sessions = (response as List<dynamic>)
           .map((json) => PartySession.fromJson(json as Map<String, dynamic>))

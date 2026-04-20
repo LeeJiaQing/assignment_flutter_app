@@ -1,4 +1,5 @@
 // lib/features/profile/profile_screen.dart
+import 'package:assignment/features/party/myparty_screen_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -122,13 +123,8 @@ class _ProfileViewState extends State<_ProfileView> {
               ProfileMenuItem(
                 icon: Icons.celebration_outlined,
                 label: 'My Party Sessions',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const PartyScreen(showBackButton: true),
-                  ),
+                onTap: () => Navigator.pushNamed(context, '/party/my'),
                 ),
-              ),
               if (_isAdmin)
                 ProfileMenuItem(
                   icon: Icons.manage_accounts_outlined,
