@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/facility_model.dart';
 import '../../booking/booking_schedule_screen.dart';
+import '../facility_detail_screen.dart';
 
 class FacilityCard extends StatelessWidget {
   const FacilityCard({super.key, required this.facility});
@@ -20,77 +21,85 @@ class FacilityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.07),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FacilityDetailScreen(facility: facility),
+        ),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                FacilityImage(imageUrl: facility.imageUrl),
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: _PriceBadge(price: facility.pricePerSlot),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    facility.name,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1C3A2A),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  _InfoRow(
-                    icon: Icons.location_on_outlined,
-                    text: facility.address,
-                    flexible: true,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      _InfoRow(icon: Icons.access_time_outlined, text: _hours),
-                      const SizedBox(width: 10),
-                      _InfoRow(
-                        icon: Icons.star_rounded,
-                        text: facility.averageRating > 0
-                            ? facility.averageRating.toStringAsFixed(1)
-                            : 'New',
-                      ),
-                      const SizedBox(width: 10),
-                      _InfoRow(
-                        icon: Icons.sports_tennis,
-                        text: '${facility.courts.length} court${facility.courts.length != 1 ? 's' : ''}',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _BookNowButton(facility: facility),
-                ],
-              ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.07),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  FacilityImage(imageUrl: facility.imageUrl),
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: _PriceBadge(price: facility.pricePerSlot),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      facility.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1C3A2A),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _InfoRow(
+                      icon: Icons.location_on_outlined,
+                      text: facility.address,
+                      flexible: true,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        _InfoRow(icon: Icons.access_time_outlined, text: _hours),
+                        const SizedBox(width: 10),
+                        _InfoRow(
+                          icon: Icons.star_rounded,
+                          text: facility.averageRating > 0
+                              ? facility.averageRating.toStringAsFixed(1)
+                              : 'New',
+                        ),
+                        const SizedBox(width: 10),
+                        _InfoRow(
+                          icon: Icons.sports_tennis,
+                          text: '${facility.courts.length} court${facility.courts.length != 1 ? 's' : ''}',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _BookNowButton(facility: facility),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
