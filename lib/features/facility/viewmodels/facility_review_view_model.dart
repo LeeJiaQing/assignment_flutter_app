@@ -81,7 +81,7 @@ class FacilityReviewViewModel extends ChangeNotifier {
     try {
       final response = await supabase
           .from('facility_ratings')
-          .select('id, user_id, facility_id, rating, review, comment, created_at')
+          .select('*')
           .eq('facility_id', facilityId)
           .order('created_at', ascending: false);
 
