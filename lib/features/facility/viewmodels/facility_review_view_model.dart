@@ -22,15 +22,13 @@ class FacilityReview {
     required this.createdAt,
   });
 
-  factory FacilityReview.fromJson(Map<String, dynamic> json) =>
-      FacilityReview(
+  factory FacilityReview.fromJson(Map<String, dynamic> json) => FacilityReview(
         id: json['id'] as String,
         userId: json['user_id'] as String,
-        authorName:
-        (json['profiles'] as Map?)?['full_name'] as String? ?? 'User',
+        authorName: (json['profiles'] as Map?)?['full_name'] as String? ?? 'User',
         facilityId: json['facility_id'] as String,
         rating: json['rating'] as int,
-        comment: json['comment'] as String,
+        comment: (json['comment'] as String?) ?? '',
         createdAt: DateTime.parse(json['created_at'] as String),
       );
 }
@@ -52,8 +50,7 @@ class FacilityReviewViewModel extends ChangeNotifier {
 
   double get averageRating {
     if (_reviews.isEmpty) return 0;
-    return _reviews.fold(0.0, (sum, r) => sum + r.rating) /
-        _reviews.length;
+    return _reviews.fold(0.0, (sum, r) => sum + r.rating) / _reviews.length;
   }
 
   Future<void> loadReviews() async {
@@ -63,14 +60,13 @@ class FacilityReviewViewModel extends ChangeNotifier {
 
     try {
       final response = await supabase
-          .from('reviews')
+          .from('facility_ratings')
           .select('*, profiles(full_name)')
           .eq('facility_id', facilityId)
           .order('created_at', ascending: false);
 
       _reviews = (response as List<dynamic>)
-          .map((json) =>
-          FacilityReview.fromJson(json as Map<String, dynamic>))
+          .map((json) => FacilityReview.fromJson(json as Map<String, dynamic>))
           .toList();
       _status = ReviewStatus.loaded;
     } catch (e) {
@@ -81,21 +77,19 @@ class FacilityReviewViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> submitReview({
-    required int rating,
-    required String comment,
-  }) async {
+  Future<bool> submitReview({required int rating, required String comment}) async {
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return false;
 
-      await supabase.from('reviews').insert({
+      await supabase.from('facility_ratings').upsert({
         'user_id': userId,
         'facility_id': facilityId,
         'rating': rating,
         'comment': comment.trim(),
-      });
+      }, onConflict: 'facility_id,user_id');
 
+      await _refreshAverageRatingColumn();
       await loadReviews();
       return true;
     } catch (e) {
@@ -103,5 +97,25 @@ class FacilityReviewViewModel extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<void> _refreshAverageRatingColumn() async {
+    final response = await supabase
+        .from('facility_ratings')
+        .select('rating')
+        .eq('facility_id', facilityId);
+
+    final ratings = (response as List<dynamic>)
+        .map((row) => (row as Map<String, dynamic>)['rating'] as int)
+        .toList();
+
+    final average = ratings.isEmpty
+        ? 0.0
+        : ratings.reduce((a, b) => a + b) / ratings.length;
+
+    await supabase
+        .from('facilities')
+        .update({'average_rating': average})
+        .eq('id', facilityId);
   }
 }
