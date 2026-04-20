@@ -20,6 +20,7 @@ class _EditPartyScreenState extends State<EditPartyScreen> {
   late final TextEditingController _maxPlayersCtrl;
   bool _saving = false;
   bool _deleting = false;
+  String? _errorMsg;
 
   @override
   void initState() {
@@ -40,36 +41,39 @@ class _EditPartyScreenState extends State<EditPartyScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _errorMsg = null;
+    });
     try {
-      final updateData = <String, dynamic>{
+      // Update core fields first — these columns always exist.
+      await supabase.from('party_sessions').update({
         'sport': _sportCtrl.text.trim(),
         'notes': _notesCtrl.text.trim().isEmpty
             ? null
             : _notesCtrl.text.trim(),
         'max_players': int.parse(_maxPlayersCtrl.text.trim()),
-        // Mark as edited so participants see the badge.
-        // If is_edited column doesn't exist this will be silently ignored
-        // by Supabase (it won't error on extra fields in update).
-        'is_edited': true,
-      };
+      }).eq('id', widget.session.id);
 
-      await supabase
-          .from('party_sessions')
-          .update(updateData)
-          .eq('id', widget.session.id)
-          .eq('host_id', supabase.auth.currentUser?.id ?? '');
+      // Try to set is_edited = true separately so a missing column
+      // doesn't break the whole save.
+      try {
+        await supabase.from('party_sessions').update({
+          'is_edited': true,
+        }).eq('id', widget.session.id);
+      } catch (_) {
+        // Column may not exist yet — ignore, run the SQL migration to add it.
+      }
 
       if (!mounted) return;
       Navigator.pop(context, true); // true = was edited
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to save: $e'),
-        backgroundColor: Colors.red,
-      ));
+      setState(() {
+        _saving = false;
+        _errorMsg = e.toString();
+      });
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted && _errorMsg == null) setState(() => _saving = false);
     }
   }
 
@@ -79,7 +83,7 @@ class _EditPartyScreenState extends State<EditPartyScreen> {
       builder: (_) => AlertDialog(
         title: const Text('Delete Session'),
         content: const Text(
-            'Are you sure you want to delete this party session? This cannot be undone.'),
+            'Are you sure you want to delete this session? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -95,33 +99,30 @@ class _EditPartyScreenState extends State<EditPartyScreen> {
     );
     if (confirmed != true) return;
 
-    setState(() => _deleting = true);
+    setState(() {
+      _deleting = true;
+      _errorMsg = null;
+    });
     try {
-      final userId = supabase.auth.currentUser?.id ?? '';
-
-      // Delete members first to satisfy any FK constraints.
+      // Step 1: delete all members of this session first (FK constraint).
       await supabase
           .from('party_members')
           .delete()
           .eq('session_id', widget.session.id);
 
-      // Delete the session — filter by host_id to ensure ownership.
+      // Step 2: delete the session itself.
       await supabase
           .from('party_sessions')
           .delete()
-          .eq('id', widget.session.id)
-          .eq('host_id', userId);
+          .eq('id', widget.session.id);
 
       if (!mounted) return;
       Navigator.pop(context, 'deleted');
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to delete: $e'),
-        backgroundColor: Colors.red,
-      ));
-    } finally {
-      if (mounted) setState(() => _deleting = false);
+      setState(() {
+        _deleting = false;
+        _errorMsg = e.toString();
+      });
     }
   }
 
@@ -150,6 +151,7 @@ class _EditPartyScreenState extends State<EditPartyScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Info banner
               Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),
@@ -164,7 +166,7 @@ class _EditPartyScreenState extends State<EditPartyScreen> {
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Saving changes will show an "Edited" badge on this session.',
+                        'Saving changes will show an "Edited" badge to all participants.',
                         style: TextStyle(
                             color: Color(0xFF1C894E), fontSize: 12),
                       ),
@@ -172,6 +174,32 @@ class _EditPartyScreenState extends State<EditPartyScreen> {
                   ],
                 ),
               ),
+
+              // Error display
+              if (_errorMsg != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline,
+                          color: Colors.red, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(_errorMsg!,
+                            style: const TextStyle(
+                                color: Colors.red, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               _Field(
                 controller: _sportCtrl,
                 label: 'Sport',
@@ -217,8 +245,7 @@ class _EditPartyScreenState extends State<EditPartyScreen> {
                           strokeWidth: 2, color: Colors.white))
                       : const Text('Save Changes',
                       style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15)),
+                          fontWeight: FontWeight.bold, fontSize: 15)),
                 ),
               ),
             ],

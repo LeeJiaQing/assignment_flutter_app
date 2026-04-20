@@ -29,8 +29,7 @@ class BookingCard extends StatelessWidget {
         '${_fmt(booking.startHour)} – ${_fmt(booking.endHour)}';
 
     final statusColor = _statusColor(booking.status);
-    final statusLabel =
-        booking.status[0].toUpperCase() + booking.status.substring(1);
+    final statusLabel = _statusLabel(booking.status);
 
     return Container(
       decoration: BoxDecoration(
@@ -99,6 +98,18 @@ class BookingCard extends StatelessWidget {
     );
   }
 
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'confirmed':   return 'Confirmed';
+      case 'pending':     return 'Pending';
+      case 'completed':   return 'Completed';
+      case 'cancelled':   return 'Cancelled';
+      case 'checked_in':  return 'Checked In';
+      default:
+        return status[0].toUpperCase() + status.substring(1).replaceAll('_', ' ');
+    }
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'confirmed':
@@ -107,6 +118,8 @@ class BookingCard extends StatelessWidget {
         return Colors.orange;
       case 'completed':
         return Colors.purple;
+      case 'checked_in':
+        return Colors.blue;
       default:
         return Colors.red;
     }

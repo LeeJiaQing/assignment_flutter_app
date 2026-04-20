@@ -251,29 +251,37 @@ class _QrSection extends StatelessWidget {
           const SizedBox(height: 12),
           // Booking ID shown below QR — admin can type this for manual entry
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFFD6F0E0),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.qr_code, size: 14, color: Color(0xFF1C894E)),
-                const SizedBox(width: 6),
-                Text(
-                  'ID: ${bookingId.length > 8 ? bookingId.substring(0, 8).toUpperCase() : bookingId.toUpperCase()}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
+                const Text(
+                  'Booking ID',
+                  style: TextStyle(
                     fontSize: 12,
                     color: Color(0xFF1C894E),
                     fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SelectableText(
+                  bookingId.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.5,
+                    color: Color(0xFF1C894E),
+                    fontWeight: FontWeight.bold,
                     letterSpacing: 1,
                   ),
                 ),
               ],
             ),
-          ),
+          )
         ],
       ),
     );
