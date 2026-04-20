@@ -421,9 +421,13 @@ class _HomeViewState extends State<_HomeView> {
 
     return facilities
         .where(
-          (facility) => facility.address
-              .toLowerCase()
-              .contains(_preferredLocationLabel.toLowerCase()),
+          (facility) =>
+              facility.address.toLowerCase().contains(
+                    _selectedLocation.toLowerCase(),
+                  ) ||
+              _selectedLocation
+                  .toLowerCase()
+                  .contains(facility.address.toLowerCase()),
         )
         .toList();
   }
@@ -460,16 +464,62 @@ class _HomeViewState extends State<_HomeView> {
               ),
               ListTile(
                 leading: const Icon(Icons.location_city_outlined),
-                title: const Text(_preferredLocationLabel),
+                title: const Text('Other location'),
+                subtitle: Text(_selectedLocation),
                 trailing: !_useCurrentLocation
                     ? const Icon(Icons.check, color: Color(0xFF1C894E))
                     : null,
-                onTap: () {
-                  setState(() {
-                    _useCurrentLocation = false;
-                    _selectedLocation = _preferredLocationLabel;
-                  });
-                  Navigator.pop(context);
+                onTap: () => _showOtherLocationPicker(context),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showOtherLocationPicker(BuildContext context) {
+    final facilities = context.read<FacilityViewModel>().filteredFacilities;
+    final quickPickLocations = <String>{
+      _preferredLocationLabel,
+      ...facilities.map((facility) => facility.address.trim()),
+    }.where((location) => location.isNotEmpty).take(4).toList();
+
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              const Text(
+                'Other location',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              ...quickPickLocations.map(
+                (location) => ListTile(
+                  leading: const Icon(Icons.place_outlined),
+                  title: Text(location),
+                  onTap: () {
+                    _selectFixedLocation(location);
+                    Navigator.pop(sheetContext);
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_location_alt_outlined),
+                title: const Text('Enter address details'),
+                subtitle: const Text('Address + postcode'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _showManualLocationDialog(context);
                 },
               ),
               const SizedBox(height: 12),
@@ -478,6 +528,112 @@ class _HomeViewState extends State<_HomeView> {
         );
       },
     );
+  }
+
+  void _selectFixedLocation(String location) {
+    setState(() {
+      _useCurrentLocation = false;
+      _selectedLocation = location;
+    });
+  }
+
+  Future<void> _showManualLocationDialog(BuildContext context) async {
+    final addressController = TextEditingController();
+    final postcodeController = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Address details'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: addressController,
+                decoration: const InputDecoration(
+                  labelText: 'Address',
+                  hintText: 'Street, city',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: postcodeController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Postcode',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final address = addressController.text.trim();
+                final postcode = postcodeController.text.trim();
+                Navigator.pop(dialogContext, '$address|$postcode');
+              },
+              child: const Text('Validate'),
+            ),
+          ],
+        );
+      },
+    );
+
+    addressController.dispose();
+    postcodeController.dispose();
+
+    if (result == null || !mounted) {
+      return;
+    }
+
+    final split = result.split('|');
+    if (split.length != 2) {
+      _showLocationError('Please provide a valid address and postcode.');
+      return;
+    }
+
+    final address = split.first.trim();
+    final postcode = split.last.trim();
+    final postcodePattern = RegExp(r'^[A-Za-z0-9 -]{4,10}$');
+    if (address.isEmpty || !postcodePattern.hasMatch(postcode)) {
+      _showLocationError('Invalid input. Add address and a valid postcode.');
+      return;
+    }
+
+    final isValid = await _validateLocation(address: address, postcode: postcode);
+    if (!isValid) {
+      _showLocationError('Location is invalid. Please check address details.');
+      return;
+    }
+
+    setState(() {
+      _useCurrentLocation = false;
+      _selectedLocation = '$address, $postcode';
+    });
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location updated successfully.')),
+      );
+    }
+  }
+
+  Future<bool> _validateLocation({
+    required String address,
+    required String postcode,
+  }) async {
+    try {
+      final query = '$address, $postcode';
+      final locations = await locationFromAddress(query);
+      return locations.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _selectCurrentLocation(BuildContext context) async {
