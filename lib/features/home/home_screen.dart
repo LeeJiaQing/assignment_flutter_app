@@ -1,4 +1,6 @@
 // lib/features/home/home_screen.dart
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -45,6 +47,8 @@ class _HomeViewState extends State<_HomeView> {
   static const String _preferredLocationLabel = 'PV9 Residence, Setapak';
 
   String _selectedLocation = _preferredLocationLabel;
+  bool _useCurrentLocation = false;
+  bool _isResolvingCurrentLocation = false;
 
   @override
   Widget build(BuildContext context) {
@@ -411,7 +415,7 @@ class _HomeViewState extends State<_HomeView> {
   }
 
   List<Facility> _mapFacilitiesByLocation(List<Facility> facilities) {
-    if (_selectedLocation == _currentLocationLabel) {
+    if (_useCurrentLocation) {
       return facilities;
     }
 
@@ -444,22 +448,27 @@ class _HomeViewState extends State<_HomeView> {
               ListTile(
                 leading: const Icon(Icons.my_location),
                 title: const Text(_currentLocationLabel),
-                trailing: _selectedLocation == _currentLocationLabel
+                subtitle: _isResolvingCurrentLocation
+                    ? const Text('Detecting your location...')
+                    : null,
+                trailing: _useCurrentLocation
                     ? const Icon(Icons.check, color: Color(0xFF1C894E))
                     : null,
-                onTap: () {
-                  setState(() => _selectedLocation = _currentLocationLabel);
-                  Navigator.pop(context);
-                },
+                onTap: _isResolvingCurrentLocation
+                    ? null
+                    : () => _selectCurrentLocation(context),
               ),
               ListTile(
                 leading: const Icon(Icons.location_city_outlined),
                 title: const Text(_preferredLocationLabel),
-                trailing: _selectedLocation == _preferredLocationLabel
+                trailing: !_useCurrentLocation
                     ? const Icon(Icons.check, color: Color(0xFF1C894E))
                     : null,
                 onTap: () {
-                  setState(() => _selectedLocation = _preferredLocationLabel);
+                  setState(() {
+                    _useCurrentLocation = false;
+                    _selectedLocation = _preferredLocationLabel;
+                  });
                   Navigator.pop(context);
                 },
               ),
@@ -468,6 +477,76 @@ class _HomeViewState extends State<_HomeView> {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _selectCurrentLocation(BuildContext context) async {
+    setState(() => _isResolvingCurrentLocation = true);
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showLocationError(
+          'Location service is turned off. Please enable GPS/location service.',
+        );
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _showLocationError(
+          'Location permission was denied. Please allow location access.',
+        );
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      );
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      final placemark = placemarks.isNotEmpty ? placemarks.first : null;
+      final area = placemark?.subLocality ??
+          placemark?.locality ??
+          placemark?.administrativeArea;
+      final country = placemark?.country;
+      final detectedLabel = [area, country]
+          .where((part) => part != null && part.trim().isNotEmpty)
+          .join(', ')
+          .trim();
+
+      setState(() {
+        _useCurrentLocation = true;
+        _selectedLocation = detectedLabel.isNotEmpty
+            ? detectedLabel
+            : _currentLocationLabel;
+      });
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (_) {
+      _showLocationError(
+        'Unable to detect current location. Please try again.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isResolvingCurrentLocation = false);
+      }
+    }
+  }
+
+  void _showLocationError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }
