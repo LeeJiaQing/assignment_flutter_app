@@ -71,8 +71,10 @@ class FacilityViewModel extends ChangeNotifier {
       final priceMatches =
           f.pricePerSlot >= _priceRange.start && f.pricePerSlot <= _priceRange.end;
 
-      final hourMatches = f.openHour <= _availableHourRange.start.round() &&
-          f.closeHour >= _availableHourRange.end.round();
+      final selectedStartHour = _availableHourRange.start.round();
+      final selectedEndHour = _availableHourRange.end.round();
+      final hourMatches =
+          f.openHour <= selectedEndHour && f.closeHour >= selectedStartHour;
 
       final ratingMatches = f.averageRating >= _minimumRating;
 
