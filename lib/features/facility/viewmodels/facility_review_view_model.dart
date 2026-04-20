@@ -41,7 +41,7 @@ class FacilityReview {
       authorName: authorName,
       facilityId: json['facility_id'] as String,
       rating: _parseRating(json['rating']),
-      comment: ((json['review'] ?? json['comment']) as String?) ?? '',
+      comment: (json['review'] ?? json['comment']) as String? ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -80,10 +80,8 @@ class FacilityReviewViewModel extends ChangeNotifier {
 
     try {
       final rows = await _fetchRowsWithFacilityIdFallback();
-      final hasReviewColumn = rows.isNotEmpty && rows.first.containsKey('review');
       final filteredRows = rows.where((row) {
-        final text = ((hasReviewColumn ? row['review'] : row['comment']) as String?)
-                ?.trim() ??
+        final text = ((row['review'] ?? row['comment']) as String?)?.trim() ??
             '';
         return text.isNotEmpty;
       }).toList();
