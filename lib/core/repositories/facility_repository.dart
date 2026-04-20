@@ -22,27 +22,56 @@ class FacilityRepository {
     required String facilityId,
     required List<String> courtNames,
   }) async {
+    int? parseCourtNumber(String name) {
+      final match = RegExp(r'^Court\s+(\d+)$').firstMatch(name.trim());
+      return match == null ? null : int.tryParse(match.group(1)!);
+    }
+
     final desiredCount = courtNames.length;
     final currentRows = await supabase
         .from('courts')
-        .select('name')
+        .select('id, name')
         .eq('facility_id', facilityId);
-    final currentCount = (currentRows as List<dynamic>).length;
+    final rows = (currentRows as List<dynamic>)
+        .map((row) => row as Map<String, dynamic>)
+        .toList();
+    final currentCount = rows.length;
 
     if (desiredCount == currentCount) {
       return;
     }
 
     if (desiredCount < currentCount) {
-      final namesToDelete = List<String>.generate(
-        currentCount - desiredCount,
-        (index) => 'Court ${desiredCount + index + 1}',
-      );
+      final neededDeletes = currentCount - desiredCount;
+
+      final sortedRows = [...rows]..sort((a, b) {
+        final aNum = parseCourtNumber(a['name'] as String? ?? '') ?? -1;
+        final bNum = parseCourtNumber(b['name'] as String? ?? '') ?? -1;
+        return bNum.compareTo(aNum);
+      });
+
+      final toDeleteIds = <String>[];
+      for (final row in sortedRows) {
+        final number = parseCourtNumber(row['name'] as String? ?? '');
+        if (number != null && number > desiredCount) {
+          toDeleteIds.add(row['id'] as String);
+        }
+      }
+
+      for (final row in sortedRows) {
+        if (toDeleteIds.length >= neededDeletes) break;
+        final id = row['id'] as String;
+        if (!toDeleteIds.contains(id)) {
+          toDeleteIds.add(id);
+        }
+      }
+
+      if (toDeleteIds.isEmpty) return;
       await supabase
           .from('courts')
           .delete()
           .eq('facility_id', facilityId)
-          .inFilter('name', namesToDelete);
+          .inFilter('id', toDeleteIds);
       return;
     }
 
