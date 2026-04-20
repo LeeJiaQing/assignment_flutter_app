@@ -118,7 +118,7 @@ class _HomeViewState extends State<_HomeView> {
                 const SizedBox(height: 4),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => _showLocationPicker(context),
+                  onTap: _showLocationPicker,
                   child: Row(
                     children: [
                       const Icon(
@@ -435,7 +435,7 @@ class _HomeViewState extends State<_HomeView> {
         .toList();
   }
 
-  Future<void> _showLocationPicker(BuildContext context) async {
+  Future<void> _showLocationPicker() async {
     final action = await showDialog<_LocationPickerAction>(
       context: context,
       builder: (dialogContext) {
@@ -481,13 +481,13 @@ class _HomeViewState extends State<_HomeView> {
 
     if (!mounted || action == null) return;
     if (action == _LocationPickerAction.current) {
-      await _selectCurrentLocation(context);
+      await _selectCurrentLocation();
       return;
     }
-    await _showOtherLocationPicker(context);
+    await _showOtherLocationPicker();
   }
 
-  Future<void> _showOtherLocationPicker(BuildContext context) async {
+  Future<void> _showOtherLocationPicker() async {
     final action = await showDialog<_LocationPickerAction>(
       context: context,
       builder: (dialogContext) {
@@ -528,7 +528,7 @@ class _HomeViewState extends State<_HomeView> {
       _selectFixedLocation(_typedOtherLocation!);
       return;
     }
-    await _showManualLocationDialog(context);
+    await _showManualLocationDialog();
   }
 
   void _selectFixedLocation(String location) {
@@ -538,65 +538,83 @@ class _HomeViewState extends State<_HomeView> {
     });
   }
 
-  Future<void> _showManualLocationDialog(BuildContext context) async {
-    final addressController = TextEditingController();
-    final postcodeController = TextEditingController();
+  Future<void> _showManualLocationDialog() async {
+    final formKey = GlobalKey<FormState>();
+    String address = '';
+    String postcode = '';
 
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Address details'),
-          content: SizedBox(
-            width: 420,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: addressController,
-                    minLines: 2,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Address',
-                      hintText: 'Street, city',
-                      border: OutlineInputBorder(),
+        return Form(
+          key: formKey,
+          child: AlertDialog(
+            title: const Text('Address details'),
+            content: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      minLines: 2,
+                      maxLines: 3,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Address',
+                        hintText: 'Street, city',
+                        border: OutlineInputBorder(),
+                      ),
+                      onSaved: (value) => address = (value ?? '').trim(),
+                      validator: (value) {
+                        if ((value ?? '').trim().isEmpty) {
+                          return 'Please enter your address.';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: postcodeController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Postcode',
-                      hintText: 'e.g. 53300',
-                      border: OutlineInputBorder(),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.done,
+                      decoration: const InputDecoration(
+                        labelText: 'Postcode',
+                        hintText: 'e.g. 53300',
+                        border: OutlineInputBorder(),
+                      ),
+                      onSaved: (value) => postcode = (value ?? '').trim(),
+                      validator: (value) {
+                        final trimmed = (value ?? '').trim();
+                        final postcodePattern = RegExp(r'^[A-Za-z0-9 -]{4,10}$');
+                        if (!postcodePattern.hasMatch(trimmed)) {
+                          return 'Enter a valid postcode.';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final state = formKey.currentState;
+                  if (state == null || !state.validate()) return;
+                  state.save();
+                  Navigator.pop(dialogContext, '$address|$postcode');
+                },
+                child: const Text('Validate'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final address = addressController.text.trim();
-                final postcode = postcodeController.text.trim();
-                Navigator.pop(dialogContext, '$address|$postcode');
-              },
-              child: const Text('Validate'),
-            ),
-          ],
         );
       },
     );
-
-    addressController.dispose();
-    postcodeController.dispose();
 
     if (result == null || !mounted) {
       return;
@@ -628,7 +646,6 @@ class _HomeViewState extends State<_HomeView> {
       _selectedLocation = _typedOtherLocation!;
     });
     if (mounted) {
-      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Location updated successfully.')),
       );
@@ -648,7 +665,7 @@ class _HomeViewState extends State<_HomeView> {
     }
   }
 
-  Future<void> _selectCurrentLocation(BuildContext context) async {
+  Future<void> _selectCurrentLocation() async {
     setState(() => _isResolvingCurrentLocation = true);
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
