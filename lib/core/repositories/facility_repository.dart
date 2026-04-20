@@ -75,13 +75,13 @@ class FacilityRepository {
       return;
     }
 
-    final rows = List<String>.generate(
+    final insertRows = List<String>.generate(
       desiredCount - currentCount,
       (index) => 'Court ${currentCount + index + 1}',
     )
         .map((name) => {'facility_id': facilityId, 'name': name})
         .toList();
-    await supabase.from('courts').insert(rows);
+    await supabase.from('courts').insert(insertRows);
   }
 
   /// Converts a stored path (e.g. "court1.jpg") into a public URL.
