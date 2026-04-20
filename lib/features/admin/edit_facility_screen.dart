@@ -20,7 +20,7 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _addressController;
-  late final TextEditingController _courtsController;
+  late final TextEditingController _courtCountController;
   late final TextEditingController _openHourController;
   late final TextEditingController _closeHourController;
   late final TextEditingController _priceController;
@@ -37,8 +37,8 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
     final f = widget.facility;
     _nameController = TextEditingController(text: f.name);
     _addressController = TextEditingController(text: f.address);
-    _courtsController = TextEditingController(
-      text: f.courts.map((court) => court.name).join(', '),
+    _courtCountController = TextEditingController(
+      text: f.courts.length.toString(),
     );
     _openHourController =
         TextEditingController(text: f.openHour.toString());
@@ -52,7 +52,7 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
   void dispose() {
     _nameController.dispose();
     _addressController.dispose();
-    _courtsController.dispose();
+    _courtCountController.dispose();
     _openHourController.dispose();
     _closeHourController.dispose();
     _priceController.dispose();
@@ -107,9 +107,9 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
                       controller: _nameController, label: 'Facility Name'),
                   _Field(controller: _addressController, label: 'Address'),
                   _Field(
-                    controller: _courtsController,
-                    label: 'Courts (comma separated, e.g. Court A, Court B)',
-                    required: false,
+                    controller: _courtCountController,
+                    label: 'Court Count (e.g. 5)',
+                    keyboardType: TextInputType.number,
                   ),
 
                   // ── Photo picker ────────────────────────────────────────
@@ -216,6 +216,16 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
   Future<void> _submit(
       BuildContext context, AdminFacilityViewModel vm) async {
     if (!_formKey.currentState!.validate()) return;
+    final courtCount = int.tryParse(_courtCountController.text.trim());
+    if (courtCount == null || courtCount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Court count must be a number greater than 0'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     // ── Resolve final image URL ───────────────────────────────────────────
     String? finalImageUrl = widget.facility.imageUrl;
@@ -242,11 +252,8 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
       'open_hour': int.parse(_openHourController.text.trim()),
       'close_hour': int.parse(_closeHourController.text.trim()),
       'price_per_slot': double.parse(_priceController.text.trim()),
-      'court_names': _courtsController.text
-          .split(',')
-          .map((name) => name.trim())
-          .where((name) => name.isNotEmpty)
-          .toList(),
+      'court_names':
+          List<String>.generate(courtCount, (index) => '${index + 1}'),
     });
 
     if (!context.mounted) return;
