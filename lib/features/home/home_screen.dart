@@ -46,12 +46,14 @@ enum _LocationPickerAction { current, other, enterAddress, previousAddress }
 
 class _HomeViewState extends State<_HomeView> {
   static const String _currentLocationLabel = 'Current location';
-  static const String _preferredLocationLabel = 'PV9 Residence, Setapak';
+  static const String _noLocationSelectedLabel = 'No location selected';
 
-  String _selectedLocation = _preferredLocationLabel;
+  String _selectedLocation = _noLocationSelectedLabel;
   String? _typedOtherLocation;
   bool _useCurrentLocation = false;
   bool _isResolvingCurrentLocation = false;
+  Position? _currentPosition;
+  final Map<String, double> _facilityDistancesInMeters = {};
 
   @override
   Widget build(BuildContext context) {
@@ -76,8 +78,7 @@ class _HomeViewState extends State<_HomeView> {
               _buildTrendySection(context, vm),
 
               // ── Near By You ─────────────────────────────────────────────
-              if (vm.status == FacilityStatus.loaded &&
-                  facilitiesByLocation.isNotEmpty)
+              if (vm.status == FacilityStatus.loaded)
                 _buildNearbySection(context, facilitiesByLocation),
 
               // ── Recent Activities ────────────────────────────────────────
@@ -342,14 +343,26 @@ class _HomeViewState extends State<_HomeView> {
             ],
           ),
         ),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: facilities.length > 3 ? 3 : facilities.length,
-          itemBuilder: (_, i) =>
-              _NearbyCard(facility: facilities[i]),
-        ),
+        if (facilities.isEmpty)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text(
+              'No location selected.',
+              style: TextStyle(
+                color: Colors.black54,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: facilities.length > 3 ? 3 : facilities.length,
+            itemBuilder: (_, i) => _NearbyCard(facility: facilities[i]),
+          ),
       ],
     );
   }
@@ -419,7 +432,21 @@ class _HomeViewState extends State<_HomeView> {
 
   List<Facility> _mapFacilitiesByLocation(List<Facility> facilities) {
     if (_useCurrentLocation) {
-      return facilities;
+      if (_facilityDistancesInMeters.isEmpty) {
+        return const [];
+      }
+
+      final nearbyFacilities = facilities
+          .where((facility) => _facilityDistancesInMeters.containsKey(facility.id))
+          .toList()
+        ..sort((a, b) => _facilityDistancesInMeters[a.id]!
+            .compareTo(_facilityDistancesInMeters[b.id]!));
+
+      return nearbyFacilities;
+    }
+
+    if (_selectedLocation == _noLocationSelectedLabel) {
+      return const [];
     }
 
     return facilities
@@ -534,6 +561,8 @@ class _HomeViewState extends State<_HomeView> {
   void _selectFixedLocation(String location) {
     setState(() {
       _useCurrentLocation = false;
+      _currentPosition = null;
+      _facilityDistancesInMeters.clear();
       _selectedLocation = location;
     });
   }
@@ -642,6 +671,8 @@ class _HomeViewState extends State<_HomeView> {
 
     setState(() {
       _useCurrentLocation = false;
+      _currentPosition = null;
+      _facilityDistancesInMeters.clear();
       _typedOtherLocation = '$address, $postcode';
       _selectedLocation = _typedOtherLocation!;
     });
@@ -665,11 +696,21 @@ class _HomeViewState extends State<_HomeView> {
     }
   }
 
+  void _setNoLocationSelected() {
+    setState(() {
+      _useCurrentLocation = false;
+      _currentPosition = null;
+      _facilityDistancesInMeters.clear();
+      _selectedLocation = _noLocationSelectedLabel;
+    });
+  }
+
   Future<void> _selectCurrentLocation() async {
     setState(() => _isResolvingCurrentLocation = true);
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
+        _setNoLocationSelected();
         _showLocationError(
           'Location service is turned off. Please enable GPS/location service.',
         );
@@ -683,6 +724,7 @@ class _HomeViewState extends State<_HomeView> {
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
+        _setNoLocationSelected();
         _showLocationError(
           'Location permission was denied. Please allow location access.',
         );
@@ -709,11 +751,15 @@ class _HomeViewState extends State<_HomeView> {
 
       setState(() {
         _useCurrentLocation = true;
+        _currentPosition = position;
         _selectedLocation = detectedLabel.isNotEmpty
             ? detectedLabel
             : _currentLocationLabel;
       });
+
+      await _resolveFacilityDistancesFromCurrentLocation();
     } catch (_) {
+      _setNoLocationSelected();
       _showLocationError(
         'Unable to detect current location. Please try again.',
       );
@@ -722,6 +768,39 @@ class _HomeViewState extends State<_HomeView> {
         setState(() => _isResolvingCurrentLocation = false);
       }
     }
+  }
+
+  Future<void> _resolveFacilityDistancesFromCurrentLocation() async {
+    final currentPosition = _currentPosition;
+    if (currentPosition == null || !mounted) return;
+
+    final facilities = context.read<FacilityViewModel>().filteredFacilities;
+    final Map<String, double> distances = {};
+
+    for (final facility in facilities) {
+      try {
+        final locations = await locationFromAddress(facility.address);
+        if (locations.isEmpty) continue;
+
+        final facilityLocation = locations.first;
+        final distance = Geolocator.distanceBetween(
+          currentPosition.latitude,
+          currentPosition.longitude,
+          facilityLocation.latitude,
+          facilityLocation.longitude,
+        );
+        distances[facility.id] = distance;
+      } catch (_) {
+        // Skip facilities with addresses that cannot be geocoded.
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _facilityDistancesInMeters
+        ..clear()
+        ..addAll(distances);
+    });
   }
 
   void _showLocationError(String message) {
