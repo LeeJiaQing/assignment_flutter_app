@@ -22,20 +22,25 @@ class FacilityReview {
     required this.createdAt,
   });
 
-  factory FacilityReview.fromJson(Map<String, dynamic> json) => FacilityReview(
-        id: json['id'] as String,
-        userId: json['user_id'] as String,
-        authorName: ((json['profiles'] as Map?)?['full_name'] as String?)
-                    ?.trim()
-                    .isNotEmpty ==
-                true
-            ? (json['profiles'] as Map?)?['full_name'] as String
-            : 'User ${(json['user_id'] as String).substring(0, 6)}',
-        facilityId: json['facility_id'] as String,
-        rating: json['rating'] as int,
-        comment: (json['comment'] as String?) ?? '',
-        createdAt: DateTime.parse(json['created_at'] as String),
-      );
+  factory FacilityReview.fromJson(Map<String, dynamic> json) {
+    final userId = json['user_id'] as String;
+    final fullName = (json['profiles'] as Map?)?['full_name'] as String?;
+    final fallbackSuffix =
+        userId.length >= 6 ? userId.substring(0, 6) : userId;
+    final authorName = (fullName?.trim().isNotEmpty ?? false)
+        ? fullName!.trim()
+        : 'User $fallbackSuffix';
+
+    return FacilityReview(
+      id: json['id'] as String,
+      userId: userId,
+      authorName: authorName,
+      facilityId: json['facility_id'] as String,
+      rating: json['rating'] as int,
+      comment: (json['comment'] as String?) ?? '',
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
 }
 
 enum ReviewStatus { initial, loading, loaded, error }
