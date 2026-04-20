@@ -31,7 +31,7 @@ class AdminFacilityTile extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          facility.address,
+          '${facility.category} • ${facility.address}',
           style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
         trailing: Row(

@@ -16,6 +16,7 @@ class CreateFacilityScreen extends StatefulWidget {
 class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _categoryController = TextEditingController();
   final _addressController = TextEditingController();
   final _openHourController = TextEditingController(text: '8');
   final _closeHourController = TextEditingController(text: '22');
@@ -26,6 +27,7 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _categoryController.dispose();
     _addressController.dispose();
     _openHourController.dispose();
     _closeHourController.dispose();
@@ -49,6 +51,10 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
                 children: [
                   _Field(
                       controller: _nameController, label: 'Facility Name'),
+                  _Field(
+                    controller: _categoryController,
+                    label: 'Category (e.g. Badminton)',
+                  ),
                   _Field(controller: _addressController, label: 'Address'),
                   const Align(
                     alignment: Alignment.centerLeft,
@@ -145,6 +151,7 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
 
     final success = await context.read<AdminFacilityViewModel>().createFacility({
       'name': _nameController.text.trim(),
+      'category': _categoryController.text.trim(),
       'address': _addressController.text.trim(),
       'image_url': uploadedImagePath,
       'open_hour': int.parse(_openHourController.text.trim()),

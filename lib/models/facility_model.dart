@@ -21,35 +21,37 @@ class Court {
 class Facility {
   final String id;
   final String name;
+  final String category;
   final String address;
   final String? imageUrl;
   final int openHour;
   final int closeHour;
   final double pricePerSlot;
-  final String category;
   final List<Court> courts;
 
   const Facility({
     required this.id,
     required this.name,
+    this.category = 'Other',
     required this.address,
     this.imageUrl,
     required this.openHour,
     required this.closeHour,
     required this.pricePerSlot,
-    this.category = 'Other',
     this.courts = const [],
   });
 
   factory Facility.fromJson(Map<String, dynamic> json) => Facility(
     id: json['id'] as String,
     name: json['name'] as String,
+    category: (json['category'] as String?)?.trim().isNotEmpty == true
+        ? json['category'] as String
+        : 'Other',
     address: json['address'] as String,
     imageUrl: json['image_url'] as String?,
     openHour: json['open_hour'] as int,
     closeHour: json['close_hour'] as int,
     pricePerSlot: (json['price_per_slot'] as num).toDouble(),
-    category: (json['category'] as String?) ?? 'Other',
     courts: (json['courts'] as List<dynamic>? ?? [])
         .map((c) => Court.fromJson(c as Map<String, dynamic>))
         .toList(),

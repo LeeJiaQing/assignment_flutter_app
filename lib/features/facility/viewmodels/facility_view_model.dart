@@ -17,6 +17,7 @@ class FacilityViewModel extends ChangeNotifier {
   String _query = '';
   String? _selectedCategory;
   String? _errorMessage;
+  List<Facility> get facilities => List.unmodifiable(_facilities);
 
   FacilityStatus get status => _status;
   String? get errorMessage => _errorMessage;

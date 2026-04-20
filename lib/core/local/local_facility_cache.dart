@@ -26,6 +26,7 @@ class LocalFacilityCache {
           {
             'id': f.id,
             'name': f.name,
+            'category': f.category,
             'address': f.address,
             'image_url': f.imageUrl,
             'open_hour': f.openHour,
@@ -84,12 +85,12 @@ class LocalFacilityCache {
       return Facility(
         id: id,
         name: r['name'] as String,
+        category: (r['category'] as String?) ?? 'Other',
         address: r['address'] as String,
         imageUrl: r['image_url'] as String?,
         openHour: r['open_hour'] as int,
         closeHour: r['close_hour'] as int,
         pricePerSlot: r['price_per_slot'] as double,
-        category: (r['category'] as String?) ?? 'Other',
         courts: courtsByFacility[id] ?? [],
       );
     }).toList();

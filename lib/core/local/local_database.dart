@@ -198,9 +198,12 @@ class LocalDatabase {
     }
 
     if (oldVersion < 5) {
-      await db.execute(
-        "ALTER TABLE facilities ADD COLUMN category TEXT NOT NULL DEFAULT 'Other'",
-      );
+      try {
+        await db.execute(
+          "ALTER TABLE facilities ADD COLUMN category TEXT NOT NULL DEFAULT 'Other'",
+        );
+      } catch (_) {
+      }
     }
   }
 
