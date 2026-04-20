@@ -37,7 +37,7 @@ class FacilityReview {
       authorName: authorName,
       facilityId: json['facility_id'] as String,
       rating: json['rating'] as int,
-      comment: (json['comment'] as String?) ?? '',
+      comment: (json['review'] as String?) ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -73,8 +73,8 @@ class FacilityReviewViewModel extends ChangeNotifier {
           .from('facility_ratings')
           .select('*, profiles(full_name)')
           .eq('facility_id', facilityId)
-          .not('comment', 'is', null)
-          .neq('comment', '')
+          .not('review', 'is', null)
+          .neq('review', '')
           .order('created_at', ascending: false);
 
       _reviews = (response as List<dynamic>)
@@ -98,7 +98,7 @@ class FacilityReviewViewModel extends ChangeNotifier {
         'user_id': userId,
         'facility_id': facilityId,
         'rating': rating,
-        'comment': comment.trim(),
+        'review': comment.trim(),
       }, onConflict: 'facility_id,user_id');
 
       await _refreshAverageRatingColumn();
