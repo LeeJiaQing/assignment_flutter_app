@@ -204,8 +204,11 @@ class FacilityDetailScreen extends StatelessWidget {
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) =>
-                    FacilityReviewScreen(facilityId: facility.id),
+                builder: (_) => FacilityReviewScreen(
+                  facilityId: facility.courts.isNotEmpty
+                      ? facility.courts.first.facilityId
+                      : facility.id,
+                ),
               ),
             ),
           ),
