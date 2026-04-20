@@ -118,7 +118,7 @@ class _HomeViewState extends State<_HomeView> {
                 const SizedBox(height: 4),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => _showLocationPicker(context),
+                  onTap: _showLocationPicker,
                   child: Row(
                     children: [
                       const Icon(
@@ -435,7 +435,7 @@ class _HomeViewState extends State<_HomeView> {
         .toList();
   }
 
-  Future<void> _showLocationPicker(BuildContext context) async {
+  Future<void> _showLocationPicker() async {
     final action = await showDialog<_LocationPickerAction>(
       context: context,
       builder: (dialogContext) {
@@ -481,13 +481,13 @@ class _HomeViewState extends State<_HomeView> {
 
     if (!mounted || action == null) return;
     if (action == _LocationPickerAction.current) {
-      await _selectCurrentLocation(context);
+      await _selectCurrentLocation();
       return;
     }
-    await _showOtherLocationPicker(context);
+    await _showOtherLocationPicker();
   }
 
-  Future<void> _showOtherLocationPicker(BuildContext context) async {
+  Future<void> _showOtherLocationPicker() async {
     final action = await showDialog<_LocationPickerAction>(
       context: context,
       builder: (dialogContext) {
@@ -528,7 +528,7 @@ class _HomeViewState extends State<_HomeView> {
       _selectFixedLocation(_typedOtherLocation!);
       return;
     }
-    await _showManualLocationDialog(context);
+    await _showManualLocationDialog();
   }
 
   void _selectFixedLocation(String location) {
@@ -538,7 +538,7 @@ class _HomeViewState extends State<_HomeView> {
     });
   }
 
-  Future<void> _showManualLocationDialog(BuildContext context) async {
+  Future<void> _showManualLocationDialog() async {
     final addressController = TextEditingController();
     final postcodeController = TextEditingController();
 
@@ -628,7 +628,6 @@ class _HomeViewState extends State<_HomeView> {
       _selectedLocation = _typedOtherLocation!;
     });
     if (mounted) {
-      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Location updated successfully.')),
       );
@@ -648,7 +647,7 @@ class _HomeViewState extends State<_HomeView> {
     }
   }
 
-  Future<void> _selectCurrentLocation(BuildContext context) async {
+  Future<void> _selectCurrentLocation() async {
     setState(() => _isResolvingCurrentLocation = true);
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
