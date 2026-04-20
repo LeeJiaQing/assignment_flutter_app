@@ -74,7 +74,7 @@ class FacilityViewModel extends ChangeNotifier {
       final selectedStartHour = _availableHourRange.start.round();
       final selectedEndHour = _availableHourRange.end.round();
       final hourMatches =
-          f.openHour <= selectedEndHour && f.closeHour >= selectedStartHour;
+          f.openHour >= selectedStartHour && f.closeHour <= selectedEndHour;
 
       final ratingMatches = f.averageRating >= _minimumRating;
 

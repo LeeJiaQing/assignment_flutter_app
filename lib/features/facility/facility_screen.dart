@@ -156,20 +156,6 @@ class _FacilityFilterSheet extends StatefulWidget {
 }
 
 class _FacilityFilterSheetState extends State<_FacilityFilterSheet> {
-  static const List<double> _radiusOptions = [1, 5, 10];
-  double? _selectedRadius;
-  double _customRadius = 15;
-
-  @override
-  void initState() {
-    super.initState();
-    final vm = context.read<FacilityViewModel>();
-    _selectedRadius = vm.selectedDistanceRadiusKm;
-    if (_selectedRadius != null && !_radiusOptions.contains(_selectedRadius)) {
-      _customRadius = _selectedRadius!;
-    }
-  }
-
   String _formatHour(double value) {
     final hour = value.round();
     final period = hour < 12 ? 'AM' : 'PM';
@@ -184,119 +170,145 @@ class _FacilityFilterSheetState extends State<_FacilityFilterSheet> {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD6DFD9),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
               Row(
                 children: [
                   const Expanded(
                     child: Text(
                       'Filter Facilities',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                     ),
                   ),
-                  TextButton(
+                  TextButton.icon(
                     onPressed: vm.clearAdvancedFilters,
-                    child: const Text('Reset'),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Reset'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF1C894E),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              const _FilterTitle('1. Sport Type'),
-              ...vm.categories.map(
-                (category) => CheckboxListTile(
-                  value: vm.selectedSportTypes
-                      .map((e) => e.toLowerCase())
-                      .contains(category.toLowerCase()),
-                  title: Text('• $category'),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                  onChanged: (_) => vm.toggleSportType(category),
-                ),
-              ),
-              const SizedBox(height: 10),
-              const _FilterTitle('2. Distance Radius (km)'),
-              Wrap(
-                spacing: 8,
-                children: _radiusOptions
-                    .map(
-                      (radius) => ChoiceChip(
-                        label: Text('Within ${radius.toInt()}km'),
-                        selected: _selectedRadius == radius,
-                        onSelected: (_) {
-                          setState(() => _selectedRadius = radius);
-                          vm.setDistanceRadius(radius);
-                        },
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 8),
-              Text('Custom: ${_customRadius.round()}km'),
-              Slider(
-                min: 1,
-                max: 50,
-                divisions: 49,
-                value: _customRadius,
-                label: '${_customRadius.round()}km',
-                onChanged: (value) {
-                  setState(() {
-                    _customRadius = value;
-                    _selectedRadius = value;
-                  });
-                  vm.setDistanceRadius(value);
-                },
-              ),
               const Text(
-                'Note: distance filter UI is ready, but exact KM filtering depends on facility coordinate data.',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-              const SizedBox(height: 10),
-              const _FilterTitle('3. Price Range (RM / hr)'),
-              Text(
-                'RM ${vm.priceRange.start.round()} - RM ${vm.priceRange.end.round()}',
-              ),
-              RangeSlider(
-                min: 0,
-                max: vm.maxFacilityPrice,
-                divisions: vm.maxFacilityPrice.round().clamp(1, 500),
-                values: vm.priceRange,
-                labels: RangeLabels(
-                  vm.priceRange.start.round().toString(),
-                  vm.priceRange.end.round().toString(),
-                ),
-                onChanged: vm.setPriceRange,
-              ),
-              const SizedBox(height: 10),
-              const _FilterTitle('4. Available Time'),
-              Text(
-                'Open time: ${_formatHour(vm.availableHourRange.start)} • Close time: ${_formatHour(vm.availableHourRange.end)}',
-              ),
-              RangeSlider(
-                min: 0,
-                max: 24,
-                divisions: 24,
-                values: vm.availableHourRange,
-                onChanged: vm.setAvailableHourRange,
-              ),
-              const SizedBox(height: 10),
-              const _FilterTitle('5. Rating of Facility'),
-              Text('Minimum ${vm.minimumRating.toStringAsFixed(1)} star'),
-              Slider(
-                min: 0,
-                max: 5,
-                divisions: 10,
-                value: vm.minimumRating,
-                label: vm.minimumRating.toStringAsFixed(1),
-                onChanged: vm.setMinimumRating,
+                'Adjust preferences to quickly find the right facility.',
+                style: TextStyle(color: Color(0xFF6B7A72)),
               ),
               const SizedBox(height: 12),
+              _FilterSection(
+                title: 'Sport Type',
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: vm.categories
+                      .map(
+                        (category) => FilterChip(
+                          label: Text(category),
+                          selected: vm.selectedSportTypes
+                              .map((e) => e.toLowerCase())
+                              .contains(category.toLowerCase()),
+                          onSelected: (_) => vm.toggleSportType(category),
+                          selectedColor: const Color(0xFFE0F4E9),
+                          checkmarkColor: const Color(0xFF1C894E),
+                          side: BorderSide(
+                            color: vm.selectedSportTypes
+                                    .map((e) => e.toLowerCase())
+                                    .contains(category.toLowerCase())
+                                ? const Color(0xFF1C894E)
+                                : const Color(0xFFD6DFD9),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _FilterSection(
+                title: 'Price Range (RM / hr)',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'RM ${vm.priceRange.start.round()} - RM ${vm.priceRange.end.round()}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    RangeSlider(
+                      min: 0,
+                      max: vm.maxFacilityPrice,
+                      divisions: vm.maxFacilityPrice.round().clamp(1, 500),
+                      values: vm.priceRange,
+                      labels: RangeLabels(
+                        vm.priceRange.start.round().toString(),
+                        vm.priceRange.end.round().toString(),
+                      ),
+                      activeColor: const Color(0xFF1C894E),
+                      onChanged: vm.setPriceRange,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _FilterSection(
+                title: 'Available Time',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Open from ${_formatHour(vm.availableHourRange.start)} to ${_formatHour(vm.availableHourRange.end)}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    RangeSlider(
+                      min: 0,
+                      max: 24,
+                      divisions: 24,
+                      values: vm.availableHourRange,
+                      activeColor: const Color(0xFF1C894E),
+                      onChanged: vm.setAvailableHourRange,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _FilterSection(
+                title: 'Minimum Rating',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${vm.minimumRating.toStringAsFixed(1)} star & above',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Slider(
+                      min: 0,
+                      max: 5,
+                      divisions: 10,
+                      value: vm.minimumRating,
+                      label: vm.minimumRating.toStringAsFixed(1),
+                      activeColor: const Color(0xFF1C894E),
+                      onChanged: vm.setMinimumRating,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -326,6 +338,34 @@ class _FilterTitle extends StatelessWidget {
     return Text(
       title,
       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+    );
+  }
+}
+
+class _FilterSection extends StatelessWidget {
+  const _FilterSection({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FBF9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE4EEE8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _FilterTitle(title),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
     );
   }
 }
