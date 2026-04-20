@@ -539,64 +539,82 @@ class _HomeViewState extends State<_HomeView> {
   }
 
   Future<void> _showManualLocationDialog() async {
-    final addressController = TextEditingController();
-    final postcodeController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    String address = '';
+    String postcode = '';
 
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Address details'),
-          content: SizedBox(
-            width: 420,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: addressController,
-                    minLines: 2,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Address',
-                      hintText: 'Street, city',
-                      border: OutlineInputBorder(),
+        return Form(
+          key: formKey,
+          child: AlertDialog(
+            title: const Text('Address details'),
+            content: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      minLines: 2,
+                      maxLines: 3,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Address',
+                        hintText: 'Street, city',
+                        border: OutlineInputBorder(),
+                      ),
+                      onSaved: (value) => address = (value ?? '').trim(),
+                      validator: (value) {
+                        if ((value ?? '').trim().isEmpty) {
+                          return 'Please enter your address.';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: postcodeController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Postcode',
-                      hintText: 'e.g. 53300',
-                      border: OutlineInputBorder(),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.done,
+                      decoration: const InputDecoration(
+                        labelText: 'Postcode',
+                        hintText: 'e.g. 53300',
+                        border: OutlineInputBorder(),
+                      ),
+                      onSaved: (value) => postcode = (value ?? '').trim(),
+                      validator: (value) {
+                        final trimmed = (value ?? '').trim();
+                        final postcodePattern = RegExp(r'^[A-Za-z0-9 -]{4,10}$');
+                        if (!postcodePattern.hasMatch(trimmed)) {
+                          return 'Enter a valid postcode.';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final state = formKey.currentState;
+                  if (state == null || !state.validate()) return;
+                  state.save();
+                  Navigator.pop(dialogContext, '$address|$postcode');
+                },
+                child: const Text('Validate'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final address = addressController.text.trim();
-                final postcode = postcodeController.text.trim();
-                Navigator.pop(dialogContext, '$address|$postcode');
-              },
-              child: const Text('Validate'),
-            ),
-          ],
         );
       },
     );
-
-    addressController.dispose();
-    postcodeController.dispose();
 
     if (result == null || !mounted) {
       return;
