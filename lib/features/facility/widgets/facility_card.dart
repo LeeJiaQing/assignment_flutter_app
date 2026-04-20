@@ -73,9 +73,15 @@ class FacilityCard extends StatelessWidget {
                       _InfoRow(icon: Icons.access_time_outlined, text: _hours),
                       const SizedBox(width: 10),
                       _InfoRow(
+                        icon: Icons.star_rounded,
+                        text: facility.averageRating > 0
+                            ? facility.averageRating.toStringAsFixed(1)
+                            : 'New',
+                      ),
+                      const SizedBox(width: 10),
+                      _InfoRow(
                         icon: Icons.sports_tennis,
-                        text:
-                        '${facility.courts.length} court${facility.courts.length != 1 ? 's' : ''}',
+                        text: '${facility.courts.length} court${facility.courts.length != 1 ? 's' : ''}',
                       ),
                     ],
                   ),
