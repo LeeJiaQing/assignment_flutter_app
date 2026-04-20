@@ -79,13 +79,7 @@ class FacilityReviewViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await supabase
-          .from('facility_ratings')
-          .select('*')
-          .eq('facility_id', facilityId)
-          .order('created_at', ascending: false);
-
-      final rows = (response as List<dynamic>).cast<Map<String, dynamic>>();
+      final rows = await _fetchRowsWithFacilityIdFallback();
       final hasReviewColumn = rows.isNotEmpty && rows.first.containsKey('review');
       final filteredRows = rows.where((row) {
         final text = ((hasReviewColumn ? row['review'] : row['comment']) as String?)
@@ -130,6 +124,46 @@ class FacilityReviewViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchRowsWithFacilityIdFallback() async {
+    final response = await supabase
+        .from('facility_ratings')
+        .select('*')
+        .eq('facility_id', facilityId)
+        .order('created_at', ascending: false);
+
+    final primaryRows = (response as List<dynamic>).cast<Map<String, dynamic>>();
+    if (primaryRows.isNotEmpty) return primaryRows;
+
+    final candidateIds = <String>{facilityId};
+    try {
+      final facilityRow = await supabase
+          .from('facilities')
+          .select('id, facility_id')
+          .or('id.eq.$facilityId,facility_id.eq.$facilityId')
+          .maybeSingle();
+
+      if (facilityRow != null) {
+        final row = facilityRow as Map<String, dynamic>;
+        final id = row['id'] as String?;
+        final legacyId = row['facility_id'] as String?;
+        if (id != null && id.isNotEmpty) candidateIds.add(id);
+        if (legacyId != null && legacyId.isNotEmpty) candidateIds.add(legacyId);
+      }
+    } catch (_) {
+      // Ignore fallback resolution errors (e.g. facilities.facility_id absent).
+    }
+
+    if (candidateIds.length == 1) return primaryRows;
+
+    final fallbackResponse = await supabase
+        .from('facility_ratings')
+        .select('*')
+        .inFilter('facility_id', candidateIds.toList())
+        .order('created_at', ascending: false);
+
+    return (fallbackResponse as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
   Future<bool> submitReview({required int rating, required String comment}) async {
