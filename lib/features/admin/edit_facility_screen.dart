@@ -20,6 +20,7 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _addressController;
+  late final TextEditingController _courtsController;
   late final TextEditingController _openHourController;
   late final TextEditingController _closeHourController;
   late final TextEditingController _priceController;
@@ -36,6 +37,9 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
     final f = widget.facility;
     _nameController = TextEditingController(text: f.name);
     _addressController = TextEditingController(text: f.address);
+    _courtsController = TextEditingController(
+      text: f.courts.map((court) => court.name).join(', '),
+    );
     _openHourController =
         TextEditingController(text: f.openHour.toString());
     _closeHourController =
@@ -48,6 +52,7 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
   void dispose() {
     _nameController.dispose();
     _addressController.dispose();
+    _courtsController.dispose();
     _openHourController.dispose();
     _closeHourController.dispose();
     _priceController.dispose();
@@ -101,6 +106,11 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
                   _Field(
                       controller: _nameController, label: 'Facility Name'),
                   _Field(controller: _addressController, label: 'Address'),
+                  _Field(
+                    controller: _courtsController,
+                    label: 'Courts (comma separated, e.g. Court A, Court B)',
+                    required: false,
+                  ),
 
                   // ── Photo picker ────────────────────────────────────────
                   const Align(
@@ -232,6 +242,11 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
       'open_hour': int.parse(_openHourController.text.trim()),
       'close_hour': int.parse(_closeHourController.text.trim()),
       'price_per_slot': double.parse(_priceController.text.trim()),
+      'court_names': _courtsController.text
+          .split(',')
+          .map((name) => name.trim())
+          .where((name) => name.isNotEmpty)
+          .toList(),
     });
 
     if (!context.mounted) return;
