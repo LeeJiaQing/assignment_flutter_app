@@ -25,7 +25,12 @@ class FacilityReview {
   factory FacilityReview.fromJson(Map<String, dynamic> json) => FacilityReview(
         id: json['id'] as String,
         userId: json['user_id'] as String,
-        authorName: (json['profiles'] as Map?)?['full_name'] as String? ?? 'User',
+        authorName: ((json['profiles'] as Map?)?['full_name'] as String?)
+                    ?.trim()
+                    .isNotEmpty ==
+                true
+            ? (json['profiles'] as Map?)?['full_name'] as String
+            : 'User ${(json['user_id'] as String).substring(0, 6)}',
         facilityId: json['facility_id'] as String,
         rating: json['rating'] as int,
         comment: (json['comment'] as String?) ?? '',
@@ -63,6 +68,8 @@ class FacilityReviewViewModel extends ChangeNotifier {
           .from('facility_ratings')
           .select('*, profiles(full_name)')
           .eq('facility_id', facilityId)
+          .not('comment', 'is', null)
+          .neq('comment', '')
           .order('created_at', ascending: false);
 
       _reviews = (response as List<dynamic>)
