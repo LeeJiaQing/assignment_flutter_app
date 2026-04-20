@@ -42,6 +42,8 @@ class _HomeView extends StatefulWidget {
   State<_HomeView> createState() => _HomeViewState();
 }
 
+enum _LocationPickerAction { current, other, enterAddress, previousAddress }
+
 class _HomeViewState extends State<_HomeView> {
   static const String _currentLocationLabel = 'Current location';
   static const String _preferredLocationLabel = 'PV9 Residence, Setapak';
@@ -433,8 +435,8 @@ class _HomeViewState extends State<_HomeView> {
         .toList();
   }
 
-  void _showLocationPicker(BuildContext context) {
-    showDialog<void>(
+  Future<void> _showLocationPicker(BuildContext context) async {
+    final action = await showDialog<_LocationPickerAction>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -454,26 +456,39 @@ class _HomeViewState extends State<_HomeView> {
                     : null,
                 onTap: _isResolvingCurrentLocation
                     ? null
-                    : () => _selectCurrentLocation(dialogContext),
+                    : () => Navigator.pop(
+                        dialogContext,
+                        _LocationPickerAction.current,
+                      ),
               ),
               ListTile(
                 leading: const Icon(Icons.location_city_outlined),
                 title: const Text('Other location'),
                 subtitle: Text(_typedOtherLocation ?? 'Enter address detail'),
-                trailing: !_useCurrentLocation
+                trailing: !_useCurrentLocation && _typedOtherLocation != null
                     ? const Icon(Icons.check, color: Color(0xFF1C894E))
                     : null,
-                onTap: () => _showOtherLocationPicker(dialogContext),
+                onTap: () => Navigator.pop(
+                  dialogContext,
+                  _LocationPickerAction.other,
+                ),
               ),
             ],
           ),
         );
       },
     );
+
+    if (!mounted || action == null) return;
+    if (action == _LocationPickerAction.current) {
+      await _selectCurrentLocation(context);
+      return;
+    }
+    await _showOtherLocationPicker(context);
   }
 
-  void _showOtherLocationPicker(BuildContext context) {
-    showDialog<void>(
+  Future<void> _showOtherLocationPicker(BuildContext context) async {
+    final action = await showDialog<_LocationPickerAction>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -488,25 +503,146 @@ class _HomeViewState extends State<_HomeView> {
                   title: Text(_typedOtherLocation!),
                   subtitle: const Text('Use previously entered location'),
                   onTap: () {
-                    _selectFixedLocation(_typedOtherLocation!);
-                    Navigator.pop(dialogContext);
-                    Navigator.pop(context);
+                    Navigator.pop(
+                      dialogContext,
+                      _LocationPickerAction.previousAddress,
+                    );
                   },
                 ),
               ListTile(
                 leading: const Icon(Icons.edit_location_alt_outlined),
                 title: const Text('Enter address details'),
                 subtitle: const Text('Address + postcode'),
-                onTap: () async {
-                  Navigator.pop(dialogContext);
-                  await _showManualLocationDialog(context);
-                },
+                onTap: () =>
+                    Navigator.pop(dialogContext, _LocationPickerAction.enterAddress),
               ),
             ],
           ),
         );
       },
     );
+
+    if (!mounted || action == null) return;
+    if (action == _LocationPickerAction.previousAddress &&
+        _typedOtherLocation != null) {
+      _selectFixedLocation(_typedOtherLocation!);
+      return;
+    }
+    await _showManualLocationDialog(context);
+  }
+
+  void _selectFixedLocation(String location) {
+    setState(() {
+      _useCurrentLocation = false;
+      _selectedLocation = location;
+    });
+  }
+
+  Future<void> _showManualLocationDialog(BuildContext context) async {
+    final addressController = TextEditingController();
+    final postcodeController = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Address details'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: addressController,
+                    minLines: 2,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Address',
+                      hintText: 'Street, city',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: postcodeController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Postcode',
+                      hintText: 'e.g. 53300',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final address = addressController.text.trim();
+                final postcode = postcodeController.text.trim();
+                Navigator.pop(dialogContext, '$address|$postcode');
+              },
+              child: const Text('Validate'),
+            ),
+          ],
+        );
+      },
+    );
+
+    addressController.dispose();
+    postcodeController.dispose();
+
+    if (result == null || !mounted) {
+      return;
+    }
+
+    final split = result.split('|');
+    if (split.length != 2) {
+      _showLocationError('Please provide a valid address and postcode.');
+      return;
+    }
+
+    final address = split.first.trim();
+    final postcode = split.last.trim();
+    final postcodePattern = RegExp(r'^[A-Za-z0-9 -]{4,10}$');
+    if (address.isEmpty || !postcodePattern.hasMatch(postcode)) {
+      _showLocationError('Invalid input. Add address and a valid postcode.');
+      return;
+    }
+
+    final isValid = await _validateLocation(address: address, postcode: postcode);
+    if (!isValid) {
+      _showLocationError('Location is invalid. Please check address details.');
+      return;
+    }
+
+    setState(() {
+      _useCurrentLocation = false;
+      _typedOtherLocation = '$address, $postcode';
+      _selectedLocation = _typedOtherLocation!;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Location updated successfully.')),
+    );
+  }
+
+  Future<bool> _validateLocation({
+    required String address,
+    required String postcode,
+  }) async {
+    try {
+      final query = '$address, $postcode';
+      final locations = await locationFromAddress(query);
+      return locations.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   void _selectFixedLocation(String location) {
@@ -674,10 +810,6 @@ class _HomeViewState extends State<_HomeView> {
             ? detectedLabel
             : _currentLocationLabel;
       });
-
-      if (mounted) {
-        Navigator.pop(context);
-      }
     } catch (_) {
       _showLocationError(
         'Unable to detect current location. Please try again.',
