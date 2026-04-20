@@ -105,6 +105,13 @@ class FacilityDetailScreen extends StatelessWidget {
             text:
             '${facility.courts.length} court${facility.courts.length != 1 ? 's' : ''} available',
           ),
+          const SizedBox(height: 6),
+          _DetailRow(
+            icon: Icons.star_rounded,
+            text: facility.averageRating > 0
+                ? '${facility.averageRating.toStringAsFixed(1)} / 5.0'
+                : 'No rating yet',
+          ),
         ],
       ),
     );

@@ -31,7 +31,7 @@ class LocalDatabase {
 
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -48,6 +48,7 @@ class LocalDatabase {
         close_hour INTEGER NOT NULL,
         price_per_slot REAL NOT NULL,
         category TEXT NOT NULL DEFAULT 'Other',
+        average_rating REAL NOT NULL DEFAULT 0,
         cached_at INTEGER NOT NULL
       )
     ''');
@@ -201,6 +202,15 @@ class LocalDatabase {
       try {
         await db.execute(
           "ALTER TABLE facilities ADD COLUMN category TEXT NOT NULL DEFAULT 'Other'",
+        );
+      } catch (_) {
+      }
+    }
+
+    if (oldVersion < 6) {
+      try {
+        await db.execute(
+          "ALTER TABLE facilities ADD COLUMN average_rating REAL NOT NULL DEFAULT 0",
         );
       } catch (_) {
       }

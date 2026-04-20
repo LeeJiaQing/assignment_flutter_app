@@ -28,6 +28,7 @@ class Facility {
   final int closeHour;
   final double pricePerSlot;
   final List<Court> courts;
+  final double averageRating;
 
   const Facility({
     required this.id,
@@ -39,6 +40,7 @@ class Facility {
     required this.closeHour,
     required this.pricePerSlot,
     this.courts = const [],
+    this.averageRating = 0,
   });
 
   factory Facility.fromJson(Map<String, dynamic> json) => Facility(
@@ -55,5 +57,6 @@ class Facility {
     courts: (json['courts'] as List<dynamic>? ?? [])
         .map((c) => Court.fromJson(c as Map<String, dynamic>))
         .toList(),
+    averageRating: (json['average_rating'] as num?)?.toDouble() ?? 0,
   );
 }

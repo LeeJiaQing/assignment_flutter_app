@@ -162,48 +162,28 @@ class _HomeViewState extends State<_HomeView> {
   Widget _buildSearchBar(BuildContext context, FacilityViewModel vm) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextField(
-                onChanged: vm.updateQuery,
-                decoration: InputDecoration(
-                  hintText: 'Volleyball',
-                  hintStyle:
-                      TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                  prefixIcon: const Icon(Icons.search,
-                      color: Color(0xFF1C894E), size: 20),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                      vertical: 13, horizontal: 4),
-                ),
-              ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
+          ],
+        ),
+        child: TextField(
+          onChanged: vm.updateQuery,
+          decoration: InputDecoration(
+            hintText: 'Volleyball',
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            prefixIcon: const Icon(Icons.search, color: Color(0xFF1C894E), size: 20),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
           ),
-          const SizedBox(width: 10),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF1C894E),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.tune, color: Colors.white, size: 20),
-              onPressed: () {},
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

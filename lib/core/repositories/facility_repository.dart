@@ -29,6 +29,7 @@ class FacilityRepository {
       pricePerSlot: raw.pricePerSlot,
       category: raw.category,
       courts: raw.courts,
+      averageRating: raw.averageRating,
     );
   }
 
@@ -38,7 +39,7 @@ class FacilityRepository {
     // First fetch the facility row itself
     final facilityRow = await supabase
         .from('facilities')
-        .select('id, name, address, image_url, open_hour, close_hour, price_per_slot, category')
+        .select('id, name, address, image_url, open_hour, close_hour, price_per_slot, category, average_rating')
         .eq('id', id)
         .maybeSingle();
 
@@ -94,7 +95,7 @@ class FacilityRepository {
 
     final response = await supabase
         .from('facilities')
-        .select('id, name, address, image_url, open_hour, close_hour, price_per_slot, category')
+        .select('id, name, address, image_url, open_hour, close_hour, price_per_slot, category, average_rating')
         .inFilter('id', ids);
 
     return (response as List<dynamic>)
