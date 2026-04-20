@@ -8,6 +8,53 @@ import '../supabase/supabase_config.dart';
 class FacilityRepository {
   static const _bucket = 'facilities';
 
+  List<String>? _extractCourtNames(Map<String, dynamic> data) {
+    if (!data.containsKey('court_names')) return null;
+    final raw = data.remove('court_names');
+    if (raw is! List) return const [];
+    return raw
+        .map((court) => court.toString().trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
+  }
+
+  Future<void> _replaceCourts({
+    required String facilityId,
+    required List<String> courtNames,
+  }) async {
+    final desiredCount = courtNames.length;
+    final currentRows = await supabase
+        .from('courts')
+        .select('name')
+        .eq('facility_id', facilityId);
+    final currentCount = (currentRows as List<dynamic>).length;
+
+    if (desiredCount == currentCount) {
+      return;
+    }
+
+    if (desiredCount < currentCount) {
+      final namesToDelete = List<String>.generate(
+        currentCount - desiredCount,
+        (index) => 'Court ${desiredCount + index + 1}',
+      );
+      await supabase
+          .from('courts')
+          .delete()
+          .eq('facility_id', facilityId)
+          .inFilter('name', namesToDelete);
+      return;
+    }
+
+    final rows = List<String>.generate(
+      desiredCount - currentCount,
+      (index) => 'Court ${currentCount + index + 1}',
+    )
+        .map((name) => {'facility_id': facilityId, 'name': name})
+        .toList();
+    await supabase.from('courts').insert(rows);
+  }
+
   /// Converts a stored path (e.g. "court1.jpg") into a public URL.
   /// If the value is already a full URL (legacy rows), it is returned as-is.
   String? _resolveImageUrl(String? path) {
@@ -106,25 +153,37 @@ class FacilityRepository {
   /// Create a new facility.
   /// Uses upsert-style insert and re-fetches separately to avoid RLS join issues.
   Future<Facility> createFacility(Map<String, dynamic> data) async {
+    final payload = Map<String, dynamic>.from(data);
+    final courtNames = _extractCourtNames(payload);
+
     // Insert without requesting a join — just get back the id.
     final response = await supabase
         .from('facilities')
-        .insert(data)
+        .insert(payload)
         .select('id')
         .single();
 
     final id = (response as Map<String, dynamic>)['id'] as String;
+    if (courtNames != null) {
+      await _replaceCourts(facilityId: id, courtNames: courtNames);
+    }
     return _fetchById(id);
   }
 
   /// Update an existing facility.
   /// Re-fetches the row separately after update to avoid PGRST116.
   Future<Facility> updateFacility(String id, Map<String, dynamic> data) async {
+    final payload = Map<String, dynamic>.from(data);
+    final courtNames = _extractCourtNames(payload);
+
     await supabase
         .from('facilities')
-        .update(data)
+        .update(payload)
         .eq('id', id);
 
+    if (courtNames != null) {
+      await _replaceCourts(facilityId: id, courtNames: courtNames);
+    }
     return _fetchById(id);
   }
 

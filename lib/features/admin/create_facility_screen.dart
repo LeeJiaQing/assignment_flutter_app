@@ -18,6 +18,7 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
   final _nameController = TextEditingController();
   final _categoryController = TextEditingController();
   final _addressController = TextEditingController();
+  final _courtCountController = TextEditingController();
   final _openHourController = TextEditingController(text: '8');
   final _closeHourController = TextEditingController(text: '22');
   final _priceController = TextEditingController();
@@ -29,6 +30,7 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
     _nameController.dispose();
     _categoryController.dispose();
     _addressController.dispose();
+    _courtCountController.dispose();
     _openHourController.dispose();
     _closeHourController.dispose();
     _priceController.dispose();
@@ -56,6 +58,11 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
                     label: 'Category (e.g. Badminton)',
                   ),
                   _Field(controller: _addressController, label: 'Address'),
+                  _Field(
+                    controller: _courtCountController,
+                    label: 'Court Count (e.g. 5)',
+                    keyboardType: TextInputType.number,
+                  ),
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -127,6 +134,16 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
 
   Future<void> _submit(BuildContext context) async {
     if (!_formKey.currentState!.validate()) return;
+    final courtCount = int.tryParse(_courtCountController.text.trim());
+    if (courtCount == null || courtCount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Court count must be a number greater than 0'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     String? uploadedImagePath;
     if (_selectedImage != null) {
@@ -157,6 +174,8 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
       'open_hour': int.parse(_openHourController.text.trim()),
       'close_hour': int.parse(_closeHourController.text.trim()),
       'price_per_slot': double.parse(_priceController.text.trim()),
+      'court_names':
+          List<String>.generate(courtCount, (index) => 'Court ${index + 1}'),
     });
 
     if (!context.mounted) return;
