@@ -4,7 +4,7 @@
 DO $$
 BEGIN
   IF to_regclass('public.reviews') IS NOT NULL THEN
-    INSERT INTO public.facility_ratings (facility_id, user_id, rating, comment, created_at)
+    INSERT INTO public.facility_ratings (facility_id, user_id, rating, review, created_at)
     SELECT
       r.facility_id,
       r.user_id,
@@ -15,7 +15,7 @@ BEGIN
     ON CONFLICT (facility_id, user_id)
     DO UPDATE SET
       rating = EXCLUDED.rating,
-      comment = EXCLUDED.comment,
+      review = EXCLUDED.review,
       created_at = EXCLUDED.created_at;
 
     DROP TABLE public.reviews;
