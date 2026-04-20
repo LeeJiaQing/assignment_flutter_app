@@ -41,7 +41,7 @@ class FacilityReview {
       authorName: authorName,
       facilityId: json['facility_id'] as String,
       rating: _parseRating(json['rating']),
-      comment: ((json['review'] ?? json['comment']) as String?) ?? '',
+      comment: (json['comment'] ?? json['review']) as String? ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -80,10 +80,8 @@ class FacilityReviewViewModel extends ChangeNotifier {
 
     try {
       final rows = await _fetchRowsWithFacilityIdFallback();
-      final hasReviewColumn = rows.isNotEmpty && rows.first.containsKey('review');
       final filteredRows = rows.where((row) {
-        final text = ((hasReviewColumn ? row['review'] : row['comment']) as String?)
-                ?.trim() ??
+        final text = ((row['comment'] ?? row['review']) as String?)?.trim() ??
             '';
         return text.isNotEmpty;
       }).toList();
@@ -175,7 +173,7 @@ class FacilityReviewViewModel extends ChangeNotifier {
         'user_id': userId,
         'facility_id': facilityId,
         'rating': rating,
-        'review': comment.trim(),
+        'comment': comment.trim(),
       }, onConflict: 'facility_id,user_id');
 
       await _refreshAverageRatingColumn();
