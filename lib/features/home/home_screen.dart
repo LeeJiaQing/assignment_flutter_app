@@ -645,6 +645,123 @@ class _HomeViewState extends State<_HomeView> {
     }
   }
 
+  void _selectFixedLocation(String location) {
+    setState(() {
+      _useCurrentLocation = false;
+      _selectedLocation = location;
+    });
+  }
+
+  Future<void> _showManualLocationDialog(BuildContext context) async {
+    final addressController = TextEditingController();
+    final postcodeController = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Address details'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: addressController,
+                    minLines: 2,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Address',
+                      hintText: 'Street, city',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: postcodeController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Postcode',
+                      hintText: 'e.g. 53300',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final address = addressController.text.trim();
+                final postcode = postcodeController.text.trim();
+                Navigator.pop(dialogContext, '$address|$postcode');
+              },
+              child: const Text('Validate'),
+            ),
+          ],
+        );
+      },
+    );
+
+    addressController.dispose();
+    postcodeController.dispose();
+
+    if (result == null || !mounted) {
+      return;
+    }
+
+    final split = result.split('|');
+    if (split.length != 2) {
+      _showLocationError('Please provide a valid address and postcode.');
+      return;
+    }
+
+    final address = split.first.trim();
+    final postcode = split.last.trim();
+    final postcodePattern = RegExp(r'^[A-Za-z0-9 -]{4,10}$');
+    if (address.isEmpty || !postcodePattern.hasMatch(postcode)) {
+      _showLocationError('Invalid input. Add address and a valid postcode.');
+      return;
+    }
+
+    final isValid = await _validateLocation(address: address, postcode: postcode);
+    if (!isValid) {
+      _showLocationError('Location is invalid. Please check address details.');
+      return;
+    }
+
+    setState(() {
+      _useCurrentLocation = false;
+      _typedOtherLocation = '$address, $postcode';
+      _selectedLocation = _typedOtherLocation!;
+    });
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location updated successfully.')),
+      );
+    }
+  }
+
+  Future<bool> _validateLocation({
+    required String address,
+    required String postcode,
+  }) async {
+    try {
+      final query = '$address, $postcode';
+      final locations = await locationFromAddress(query);
+      return locations.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _selectCurrentLocation(BuildContext context) async {
     setState(() => _isResolvingCurrentLocation = true);
     try {

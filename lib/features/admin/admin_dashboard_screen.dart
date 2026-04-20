@@ -416,6 +416,61 @@ class _AdminAnnouncementListScreenState
               );
               _load();
             },
+            onDelete: () async {
+              final id = _items[i]['id'];
+              if (id == null) return;
+
+              final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Delete announcement?'),
+                      content: const Text(
+                          'This action cannot be undone.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.pop(ctx, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.pop(ctx, true),
+                          child: const Text(
+                            'Delete',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ) ??
+                  false;
+
+              if (!confirmed) return;
+
+              try {
+                await supabase
+                    .from('announcements')
+                    .delete()
+                    .eq('id', id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content:
+                            Text('Announcement deleted.')),
+                  );
+                }
+                _load();
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Failed to delete announcement.'),
+                    ),
+                  );
+                }
+              }
+            },
           ),
         ),
       ),
@@ -439,9 +494,12 @@ class _AdminAnnouncementListScreenState
 
 class _AnnouncementTile extends StatelessWidget {
   const _AnnouncementTile(
-      {required this.data, required this.onEdit});
+      {required this.data,
+      required this.onEdit,
+      required this.onDelete});
   final Map<String, dynamic> data;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -506,10 +564,20 @@ class _AnnouncementTile extends StatelessWidget {
             ),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.edit_outlined,
-              color: Color(0xFF1C894E)),
-          onPressed: onEdit,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit_outlined,
+                  color: Color(0xFF1C894E)),
+              onPressed: onEdit,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline,
+                  color: Colors.red),
+              onPressed: onDelete,
+            ),
+          ],
         ),
       ),
     );
