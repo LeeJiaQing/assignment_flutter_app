@@ -22,9 +22,13 @@ class FacilityReview {
     required this.createdAt,
   });
 
-  factory FacilityReview.fromJson(Map<String, dynamic> json) {
+  factory FacilityReview.fromJson(
+    Map<String, dynamic> json, {
+    String? resolvedAuthorName,
+  }) {
     final userId = json['user_id'] as String;
-    final fullName = (json['profiles'] as Map?)?['full_name'] as String?;
+    final fullName =
+        resolvedAuthorName ?? (json['profiles'] as Map?)?['full_name'] as String?;
     final fallbackSuffix =
         userId.length >= 6 ? userId.substring(0, 6) : userId;
     final authorName = (fullName?.trim().isNotEmpty ?? false)
@@ -36,10 +40,16 @@ class FacilityReview {
       userId: userId,
       authorName: authorName,
       facilityId: json['facility_id'] as String,
-      rating: json['rating'] as int,
-      comment: (json['review'] as String?) ?? '',
+      rating: _parseRating(json['rating']),
+      comment: ((json['review'] ?? json['comment']) as String?) ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
     );
+  }
+
+  static int _parseRating(dynamic rating) {
+    if (rating is int) return rating;
+    if (rating is num) return rating.toInt();
+    return int.parse(rating.toString());
   }
 }
 
@@ -69,16 +79,43 @@ class FacilityReviewViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await supabase
-          .from('facility_ratings')
-          .select('*, profiles(full_name)')
-          .eq('facility_id', facilityId)
-          .not('review', 'is', null)
-          .neq('review', '')
-          .order('created_at', ascending: false);
+      final rows = await _fetchRowsWithFacilityIdFallback();
+      final hasReviewColumn = rows.isNotEmpty && rows.first.containsKey('review');
+      final filteredRows = rows.where((row) {
+        final text = ((hasReviewColumn ? row['review'] : row['comment']) as String?)
+                ?.trim() ??
+            '';
+        return text.isNotEmpty;
+      }).toList();
 
-      _reviews = (response as List<dynamic>)
-          .map((json) => FacilityReview.fromJson(json as Map<String, dynamic>))
+      final userIds = filteredRows
+          .map((row) => row['user_id'] as String)
+          .toSet()
+          .toList();
+
+      final authorNameById = <String, String>{};
+      if (userIds.isNotEmpty) {
+        final profiles = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .inFilter('id', userIds);
+
+        for (final row in (profiles as List<dynamic>).cast<Map<String, dynamic>>()) {
+          final id = row['id'] as String?;
+          final fullName = (row['full_name'] as String?)?.trim();
+          if (id != null && fullName != null && fullName.isNotEmpty) {
+            authorNameById[id] = fullName;
+          }
+        }
+      }
+
+      _reviews = filteredRows
+          .map(
+            (json) => FacilityReview.fromJson(
+              json,
+              resolvedAuthorName: authorNameById[json['user_id'] as String],
+            ),
+          )
           .toList();
       _status = ReviewStatus.loaded;
     } catch (e) {
@@ -87,6 +124,46 @@ class FacilityReviewViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchRowsWithFacilityIdFallback() async {
+    final response = await supabase
+        .from('facility_ratings')
+        .select('*')
+        .eq('facility_id', facilityId)
+        .order('created_at', ascending: false);
+
+    final primaryRows = (response as List<dynamic>).cast<Map<String, dynamic>>();
+    if (primaryRows.isNotEmpty) return primaryRows;
+
+    final candidateIds = <String>{facilityId};
+    try {
+      final facilityRow = await supabase
+          .from('facilities')
+          .select('id, facility_id')
+          .or('id.eq.$facilityId,facility_id.eq.$facilityId')
+          .maybeSingle();
+
+      if (facilityRow != null) {
+        final row = facilityRow as Map<String, dynamic>;
+        final id = row['id'] as String?;
+        final legacyId = row['facility_id'] as String?;
+        if (id != null && id.isNotEmpty) candidateIds.add(id);
+        if (legacyId != null && legacyId.isNotEmpty) candidateIds.add(legacyId);
+      }
+    } catch (_) {
+      // Ignore fallback resolution errors (e.g. facilities.facility_id absent).
+    }
+
+    if (candidateIds.length == 1) return primaryRows;
+
+    final fallbackResponse = await supabase
+        .from('facility_ratings')
+        .select('*')
+        .inFilter('facility_id', candidateIds.toList())
+        .order('created_at', ascending: false);
+
+    return (fallbackResponse as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
   Future<bool> submitReview({required int rating, required String comment}) async {
