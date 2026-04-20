@@ -628,7 +628,6 @@ class _HomeViewState extends State<_HomeView> {
       _selectedLocation = _typedOtherLocation!;
     });
     if (mounted) {
-      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Location updated successfully.')),
       );
