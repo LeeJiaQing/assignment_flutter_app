@@ -47,6 +47,7 @@ class _HomeViewState extends State<_HomeView> {
   static const String _preferredLocationLabel = 'PV9 Residence, Setapak';
 
   String _selectedLocation = _preferredLocationLabel;
+  String? _typedOtherLocation;
   bool _useCurrentLocation = false;
   bool _isResolvingCurrentLocation = false;
 
@@ -433,22 +434,15 @@ class _HomeViewState extends State<_HomeView> {
   }
 
   void _showLocationPicker(BuildContext context) {
-    showModalBottomSheet<void>(
+    showDialog<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) {
-        return SafeArea(
-          child: Column(
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Choose location'),
+          contentPadding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 8),
-              const Text(
-                'Choose location',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
               ListTile(
                 leading: const Icon(Icons.my_location),
                 title: const Text(_currentLocationLabel),
@@ -460,18 +454,17 @@ class _HomeViewState extends State<_HomeView> {
                     : null,
                 onTap: _isResolvingCurrentLocation
                     ? null
-                    : () => _selectCurrentLocation(context),
+                    : () => _selectCurrentLocation(dialogContext),
               ),
               ListTile(
                 leading: const Icon(Icons.location_city_outlined),
                 title: const Text('Other location'),
-                subtitle: Text(_selectedLocation),
+                subtitle: Text(_typedOtherLocation ?? 'Enter address detail'),
                 trailing: !_useCurrentLocation
                     ? const Icon(Icons.check, color: Color(0xFF1C894E))
                     : null,
-                onTap: () => _showOtherLocationPicker(context),
+                onTap: () => _showOtherLocationPicker(dialogContext),
               ),
-              const SizedBox(height: 12),
             ],
           ),
         );
@@ -480,49 +473,35 @@ class _HomeViewState extends State<_HomeView> {
   }
 
   void _showOtherLocationPicker(BuildContext context) {
-    final facilities = context.read<FacilityViewModel>().filteredFacilities;
-    final quickPickLocations = <String>{
-      _preferredLocationLabel,
-      ...facilities.map((facility) => facility.address.trim()),
-    }.where((location) => location.isNotEmpty).take(4).toList();
-
-    showModalBottomSheet<void>(
+    showDialog<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Other location'),
+          contentPadding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 8),
-              const Text(
-                'Other location',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              ...quickPickLocations.map(
-                (location) => ListTile(
+              if (_typedOtherLocation != null)
+                ListTile(
                   leading: const Icon(Icons.place_outlined),
-                  title: Text(location),
+                  title: Text(_typedOtherLocation!),
+                  subtitle: const Text('Use previously entered location'),
                   onTap: () {
-                    _selectFixedLocation(location);
-                    Navigator.pop(sheetContext);
+                    _selectFixedLocation(_typedOtherLocation!);
+                    Navigator.pop(dialogContext);
                     Navigator.pop(context);
                   },
                 ),
-              ),
               ListTile(
                 leading: const Icon(Icons.edit_location_alt_outlined),
                 title: const Text('Enter address details'),
                 subtitle: const Text('Address + postcode'),
                 onTap: () async {
-                  Navigator.pop(sheetContext);
+                  Navigator.pop(dialogContext);
                   await _showManualLocationDialog(context);
                 },
               ),
-              const SizedBox(height: 12),
             ],
           ),
         );
@@ -546,25 +525,35 @@ class _HomeViewState extends State<_HomeView> {
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Address details'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: addressController,
-                decoration: const InputDecoration(
-                  labelText: 'Address',
-                  hintText: 'Street, city',
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: addressController,
+                    minLines: 2,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Address',
+                      hintText: 'Street, city',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: postcodeController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Postcode',
+                      hintText: 'e.g. 53300',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: postcodeController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Postcode',
-                ),
-              ),
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -613,7 +602,8 @@ class _HomeViewState extends State<_HomeView> {
 
     setState(() {
       _useCurrentLocation = false;
-      _selectedLocation = '$address, $postcode';
+      _typedOtherLocation = '$address, $postcode';
+      _selectedLocation = _typedOtherLocation!;
     });
     if (mounted) {
       Navigator.pop(context);
