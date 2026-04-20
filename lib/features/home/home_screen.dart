@@ -181,7 +181,15 @@ class _HomeViewState extends State<_HomeView> {
   }
 
   Widget _buildTrendySection(BuildContext context, FacilityViewModel vm) {
-    final sports = vm.categories;
+    final sports = [...vm.categories];
+    sports.sort((a, b) {
+      final aIsOther = a.trim().toLowerCase() == 'other';
+      final bIsOther = b.trim().toLowerCase() == 'other';
+      if (aIsOther == bIsOther) {
+        return a.toLowerCase().compareTo(b.toLowerCase());
+      }
+      return aIsOther ? 1 : -1;
+    });
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -209,68 +217,73 @@ class _HomeViewState extends State<_HomeView> {
                     ),
                   ),
                 )
-              : Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: sports.map((sport) {
-                    final isSelected =
-                        vm.query.trim().toLowerCase() == sport.toLowerCase();
-                    return OutlinedButton(
-                      onPressed: () {
-                        vm.updateQuery(isSelected ? '' : sport);
-                      },
-                      style: ButtonStyle(
-                        backgroundColor:
-                            MaterialStateProperty.resolveWith((states) {
-                          if (isSelected) return const Color(0xFF1C894E);
-                          if (states.contains(MaterialState.hovered)) {
-                            return const Color(0xFFEAF6EF);
-                          }
-                          return Colors.white;
-                        }),
-                        foregroundColor:
-                            MaterialStateProperty.resolveWith((states) {
-                          if (isSelected) return Colors.white;
-                          if (states.contains(MaterialState.hovered)) {
-                            return const Color(0xFF1C894E);
-                          }
-                          return Colors.black87;
-                        }),
-                        side: MaterialStateProperty.resolveWith((states) {
-                          if (isSelected) {
-                            return BorderSide.none;
-                          }
-                          if (states.contains(MaterialState.hovered)) {
-                            return const BorderSide(color: Color(0xFF6DCC98));
-                          }
-                          return BorderSide(color: Colors.grey.shade300);
-                        }),
-                        shape: MaterialStateProperty.all(
-                          RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: sports.map((sport) {
+                      final isSelected =
+                          vm.query.trim().toLowerCase() == sport.toLowerCase();
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: OutlinedButton(
+                          onPressed: () {
+                            vm.updateQuery(isSelected ? '' : sport);
+                          },
+                          style: ButtonStyle(
+                            backgroundColor:
+                                MaterialStateProperty.resolveWith((states) {
+                              if (isSelected) return const Color(0xFF1C894E);
+                              if (states.contains(MaterialState.hovered)) {
+                                return const Color(0xFFEAF6EF);
+                              }
+                              return Colors.white;
+                            }),
+                            foregroundColor:
+                                MaterialStateProperty.resolveWith((states) {
+                              if (isSelected) return Colors.white;
+                              if (states.contains(MaterialState.hovered)) {
+                                return const Color(0xFF1C894E);
+                              }
+                              return Colors.black87;
+                            }),
+                            side: MaterialStateProperty.resolveWith((states) {
+                              if (isSelected) {
+                                return BorderSide.none;
+                              }
+                              if (states.contains(MaterialState.hovered)) {
+                                return const BorderSide(
+                                    color: Color(0xFF6DCC98));
+                              }
+                              return BorderSide(color: Colors.grey.shade300);
+                            }),
+                            shape: MaterialStateProperty.all(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            padding: MaterialStateProperty.all(
+                              const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                            ),
+                            overlayColor: MaterialStateProperty.resolveWith(
+                              (states) => isSelected
+                                  ? Colors.white.withOpacity(0.14)
+                                  : const Color(0xFF1C894E).withOpacity(0.08),
+                            ),
+                          ),
+                          child: Text(
+                            sport,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
-                        padding: MaterialStateProperty.all(
-                          const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                        ),
-                        overlayColor: MaterialStateProperty.resolveWith(
-                          (states) => isSelected
-                              ? Colors.white.withOpacity(0.14)
-                              : const Color(0xFF1C894E).withOpacity(0.08),
-                        ),
-                      ),
-                      child: Text(
-                        sport,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    }).toList(),
+                  ),
                 ),
         ),
       ],
