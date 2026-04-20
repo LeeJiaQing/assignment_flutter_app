@@ -173,7 +173,7 @@ class FacilityReviewViewModel extends ChangeNotifier {
         'user_id': userId,
         'facility_id': facilityId,
         'rating': rating,
-        'comment': comment.trim(),
+        'review': comment.trim(),
       }, onConflict: 'facility_id,user_id');
 
       await _refreshAverageRatingColumn();

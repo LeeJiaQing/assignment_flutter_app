@@ -653,8 +653,6 @@ class _HomeViewState extends State<_HomeView> {
       return;
     }
 
-    // final address = split.first.trim();
-    // final postcode = split.last.trim();
     final postcodePattern = RegExp(r'^[A-Za-z0-9 -]{4,10}$');
     if (address.isEmpty || !postcodePattern.hasMatch(postcode)) {
       _showLocationError('Invalid input. Add address and a valid postcode.');
