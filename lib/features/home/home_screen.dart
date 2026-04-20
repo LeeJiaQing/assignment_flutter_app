@@ -336,7 +336,18 @@ class _HomeViewState extends State<_HomeView> {
               ),
               const Spacer(),
               TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => _NearbyFacilitiesScreen(
+                        facilities: facilities,
+                        emptyMessage: _nearbyEmptyMessage(),
+                        selectedLocation: _selectedLocation,
+                      ),
+                    ),
+                  );
+                },
                 child: const Text('See all',
                     style: TextStyle(color: Color(0xFF1C894E))),
               ),
@@ -850,6 +861,71 @@ class _HomeViewState extends State<_HomeView> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
+    );
+  }
+}
+
+
+class _NearbyFacilitiesScreen extends StatelessWidget {
+  const _NearbyFacilitiesScreen({
+    required this.facilities,
+    required this.emptyMessage,
+    required this.selectedLocation,
+  });
+
+  final List<Facility> facilities;
+  final String emptyMessage;
+  final String selectedLocation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4FAF6),
+      appBar: AppBar(
+        title: const Text('Nearby Facilities'),
+        backgroundColor: const Color(0xFF1C894E),
+        foregroundColor: Colors.white,
+      ),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                selectedLocation,
+                style: const TextStyle(
+                  color: Color(0xFF1C3A2A),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Expanded(
+              child: facilities.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          emptyMessage,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                      itemCount: facilities.length,
+                      itemBuilder: (_, i) => _NearbyCard(facility: facilities[i]),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
