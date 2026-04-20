@@ -47,9 +47,9 @@ class _FacilitySearchBarState extends State<FacilitySearchBar> {
               ),
               child: TextField(
                 controller: _controller,
-                onChanged: (_) {
+                onChanged: (value) {
                   setState(() {});
-                  widget.onChanged(_);
+                  widget.onChanged(value);
                 },
                 decoration: InputDecoration(
                   hintText: 'Badminton, Pickleball…',
