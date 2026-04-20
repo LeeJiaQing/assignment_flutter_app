@@ -41,7 +41,6 @@ class _HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<_HomeView> {
-  String? _selectedTrendyCategory;
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<FacilityViewModel>();
@@ -214,13 +213,11 @@ class _HomeViewState extends State<_HomeView> {
                   spacing: 8,
                   runSpacing: 8,
                   children: sports.map((sport) {
-                    final isSelected = _selectedTrendyCategory == sport;
+                    final isSelected =
+                        vm.query.trim().toLowerCase() == sport.toLowerCase();
                     return OutlinedButton(
                       onPressed: () {
-                        setState(() {
-                          _selectedTrendyCategory =
-                              isSelected ? null : sport;
-                        });
+                        vm.updateQuery(isSelected ? '' : sport);
                       },
                       style: ButtonStyle(
                         backgroundColor:
