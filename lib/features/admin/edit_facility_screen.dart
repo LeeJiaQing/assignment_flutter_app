@@ -125,6 +125,29 @@ class _EditFacilityScreenState extends State<EditFacilityScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 140,
+                      child: (widget.facility.imageUrl ?? '').isNotEmpty &&
+                              !_clearExistingImage &&
+                              _selectedImage == null
+                          ? Image.network(
+                              widget.facility.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                'assets/images/logo.png',
+                                fit: BoxFit.contain,
+                              ),
+                            )
+                          : Image.asset(
+                              'assets/images/logo.png',
+                              fit: BoxFit.contain,
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   _ImagePickerRow(
                     label: _photoLabel,
                     onPickPressed: _pickImage,

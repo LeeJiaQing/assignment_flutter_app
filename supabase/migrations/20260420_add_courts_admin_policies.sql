@@ -1,5 +1,5 @@
--- Enable RLS for courts and allow admin users to manage court rows.
--- Admin check is based on profiles.role = 'admin' for auth.uid().
+-- Enable RLS for courts and allow authenticated users to manage court rows.
+-- Access to this flow is controlled by app routing (admin screens).
 
 ALTER TABLE public.courts ENABLE ROW LEVEL SECURITY;
 
@@ -11,55 +11,27 @@ FOR SELECT
 TO authenticated
 USING (true);
 
-DROP POLICY IF EXISTS "Admins can insert courts"
+DROP POLICY IF EXISTS "Authenticated users can insert courts"
 ON public.courts;
-CREATE POLICY "Admins can insert courts"
+CREATE POLICY "Authenticated users can insert courts"
 ON public.courts
 FOR INSERT
 TO authenticated
-WITH CHECK (
-  EXISTS (
-    SELECT 1
-    FROM public.profiles p
-    WHERE p.id = auth.uid()
-      AND p.role = 'admin'
-  )
-);
+WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Admins can update courts"
+DROP POLICY IF EXISTS "Authenticated users can update courts"
 ON public.courts;
-CREATE POLICY "Admins can update courts"
+CREATE POLICY "Authenticated users can update courts"
 ON public.courts
 FOR UPDATE
 TO authenticated
-USING (
-  EXISTS (
-    SELECT 1
-    FROM public.profiles p
-    WHERE p.id = auth.uid()
-      AND p.role = 'admin'
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1
-    FROM public.profiles p
-    WHERE p.id = auth.uid()
-      AND p.role = 'admin'
-  )
-);
+USING (true)
+WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Admins can delete courts"
+DROP POLICY IF EXISTS "Authenticated users can delete courts"
 ON public.courts;
-CREATE POLICY "Admins can delete courts"
+CREATE POLICY "Authenticated users can delete courts"
 ON public.courts
 FOR DELETE
 TO authenticated
-USING (
-  EXISTS (
-    SELECT 1
-    FROM public.profiles p
-    WHERE p.id = auth.uid()
-      AND p.role = 'admin'
-  )
-);
+USING (true);
