@@ -18,6 +18,7 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
   final _nameController = TextEditingController();
   final _categoryController = TextEditingController();
   final _addressController = TextEditingController();
+  final _courtsController = TextEditingController();
   final _openHourController = TextEditingController(text: '8');
   final _closeHourController = TextEditingController(text: '22');
   final _priceController = TextEditingController();
@@ -29,6 +30,7 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
     _nameController.dispose();
     _categoryController.dispose();
     _addressController.dispose();
+    _courtsController.dispose();
     _openHourController.dispose();
     _closeHourController.dispose();
     _priceController.dispose();
@@ -56,6 +58,11 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
                     label: 'Category (e.g. Badminton)',
                   ),
                   _Field(controller: _addressController, label: 'Address'),
+                  _Field(
+                    controller: _courtsController,
+                    label: 'Courts (comma separated, e.g. Court A, Court B)',
+                    required: false,
+                  ),
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -157,6 +164,11 @@ class _CreateFacilityScreenState extends State<CreateFacilityScreen> {
       'open_hour': int.parse(_openHourController.text.trim()),
       'close_hour': int.parse(_closeHourController.text.trim()),
       'price_per_slot': double.parse(_priceController.text.trim()),
+      'court_names': _courtsController.text
+          .split(',')
+          .map((name) => name.trim())
+          .where((name) => name.isNotEmpty)
+          .toList(),
     });
 
     if (!context.mounted) return;
