@@ -41,10 +41,16 @@ class _HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<_HomeView> {
+  static const String _currentLocationLabel = 'Current location';
+  static const String _preferredLocationLabel = 'PV9 Residence, Setapak';
+
+  String _selectedLocation = _preferredLocationLabel;
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<FacilityViewModel>();
     final homeVm = context.watch<HomeViewModel>();
+    final facilitiesByLocation = _mapFacilitiesByLocation(vm.filteredFacilities);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4FAF6),
@@ -64,8 +70,8 @@ class _HomeViewState extends State<_HomeView> {
 
               // ── Near By You ─────────────────────────────────────────────
               if (vm.status == FacilityStatus.loaded &&
-                  vm.filteredFacilities.isNotEmpty)
-                _buildNearbySection(context, vm.filteredFacilities),
+                  facilitiesByLocation.isNotEmpty)
+                _buildNearbySection(context, facilitiesByLocation),
 
               // ── Recent Activities ────────────────────────────────────────
               _buildRecentActivities(context),
@@ -103,16 +109,30 @@ class _HomeViewState extends State<_HomeView> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Row(
-                  children: [
-                    Icon(Icons.location_on, color: Colors.white70, size: 14),
-                    SizedBox(width: 4),
-                    Text(
-                      'PV9 Residence, Setapak',
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _showLocationPicker(context),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        color: Colors.white70,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _selectedLocation,
+                        style:
+                            const TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Colors.white70,
+                        size: 16,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -387,6 +407,67 @@ class _HomeViewState extends State<_HomeView> {
           ),
         ),
       ],
+    );
+  }
+
+  List<Facility> _mapFacilitiesByLocation(List<Facility> facilities) {
+    if (_selectedLocation == _currentLocationLabel) {
+      return facilities;
+    }
+
+    return facilities
+        .where(
+          (facility) => facility.address
+              .toLowerCase()
+              .contains(_preferredLocationLabel.toLowerCase()),
+        )
+        .toList();
+  }
+
+  void _showLocationPicker(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              const Text(
+                'Choose location',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.my_location),
+                title: const Text(_currentLocationLabel),
+                trailing: _selectedLocation == _currentLocationLabel
+                    ? const Icon(Icons.check, color: Color(0xFF1C894E))
+                    : null,
+                onTap: () {
+                  setState(() => _selectedLocation = _currentLocationLabel);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.location_city_outlined),
+                title: const Text(_preferredLocationLabel),
+                trailing: _selectedLocation == _preferredLocationLabel
+                    ? const Icon(Icons.check, color: Color(0xFF1C894E))
+                    : null,
+                onTap: () {
+                  setState(() => _selectedLocation = _preferredLocationLabel);
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
     );
   }
 }
