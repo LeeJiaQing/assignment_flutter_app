@@ -106,6 +106,7 @@ class _FacilityViewState extends State<_FacilityView> {
               FacilitySearchBar(
                 onChanged: vm.updateQuery,
                 onCleared: vm.clearQuery,
+                onFilterPressed: () => _showFilterSheet(context),
               ),
               Expanded(
                 child: _FacilityListArea(
@@ -131,6 +132,200 @@ class _FacilityViewState extends State<_FacilityView> {
               foregroundColor: Colors.white,
             )
           : null,
+    );
+  }
+
+  Future<void> _showFilterSheet(BuildContext context) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: context.read<FacilityViewModel>(),
+        child: const _FacilityFilterSheet(),
+      ),
+    );
+  }
+}
+
+class _FacilityFilterSheet extends StatefulWidget {
+  const _FacilityFilterSheet();
+
+  @override
+  State<_FacilityFilterSheet> createState() => _FacilityFilterSheetState();
+}
+
+class _FacilityFilterSheetState extends State<_FacilityFilterSheet> {
+  static const List<double> _radiusOptions = [1, 5, 10];
+  double? _selectedRadius;
+  double _customRadius = 15;
+
+  @override
+  void initState() {
+    super.initState();
+    final vm = context.read<FacilityViewModel>();
+    _selectedRadius = vm.selectedDistanceRadiusKm;
+    if (_selectedRadius != null && !_radiusOptions.contains(_selectedRadius)) {
+      _customRadius = _selectedRadius!;
+    }
+  }
+
+  String _formatHour(double value) {
+    final hour = value.round();
+    final period = hour < 12 ? 'AM' : 'PM';
+    final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    return '$displayHour:00 $period';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<FacilityViewModel>();
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Filter Facilities',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: vm.clearAdvancedFilters,
+                    child: const Text('Reset'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const _FilterTitle('1. Sport Type'),
+              ...vm.categories.map(
+                (category) => CheckboxListTile(
+                  value: vm.selectedSportTypes
+                      .map((e) => e.toLowerCase())
+                      .contains(category.toLowerCase()),
+                  title: Text('• $category'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (_) => vm.toggleSportType(category),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const _FilterTitle('2. Distance Radius (km)'),
+              Wrap(
+                spacing: 8,
+                children: _radiusOptions
+                    .map(
+                      (radius) => ChoiceChip(
+                        label: Text('Within ${radius.toInt()}km'),
+                        selected: _selectedRadius == radius,
+                        onSelected: (_) {
+                          setState(() => _selectedRadius = radius);
+                          vm.setDistanceRadius(radius);
+                        },
+                      ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 8),
+              Text('Custom: ${_customRadius.round()}km'),
+              Slider(
+                min: 1,
+                max: 50,
+                divisions: 49,
+                value: _customRadius,
+                label: '${_customRadius.round()}km',
+                onChanged: (value) {
+                  setState(() {
+                    _customRadius = value;
+                    _selectedRadius = value;
+                  });
+                  vm.setDistanceRadius(value);
+                },
+              ),
+              const Text(
+                'Note: distance filter UI is ready, but exact KM filtering depends on facility coordinate data.',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              const SizedBox(height: 10),
+              const _FilterTitle('3. Price Range (RM / hr)'),
+              Text(
+                'RM ${vm.priceRange.start.round()} - RM ${vm.priceRange.end.round()}',
+              ),
+              RangeSlider(
+                min: 0,
+                max: vm.maxFacilityPrice,
+                divisions: vm.maxFacilityPrice.round().clamp(1, 500),
+                values: vm.priceRange,
+                labels: RangeLabels(
+                  vm.priceRange.start.round().toString(),
+                  vm.priceRange.end.round().toString(),
+                ),
+                onChanged: vm.setPriceRange,
+              ),
+              const SizedBox(height: 10),
+              const _FilterTitle('4. Available Time'),
+              Text(
+                'Open time: ${_formatHour(vm.availableHourRange.start)} • Close time: ${_formatHour(vm.availableHourRange.end)}',
+              ),
+              RangeSlider(
+                min: 0,
+                max: 24,
+                divisions: 24,
+                values: vm.availableHourRange,
+                onChanged: vm.setAvailableHourRange,
+              ),
+              const SizedBox(height: 10),
+              const _FilterTitle('5. Rating of Facility'),
+              Text('Minimum ${vm.minimumRating.toStringAsFixed(1)} star'),
+              Slider(
+                min: 0,
+                max: 5,
+                divisions: 10,
+                value: vm.minimumRating,
+                label: vm.minimumRating.toStringAsFixed(1),
+                onChanged: vm.setMinimumRating,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1C894E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('Apply Filter'),
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterTitle extends StatelessWidget {
+  const _FilterTitle(this.title);
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
     );
   }
 }
