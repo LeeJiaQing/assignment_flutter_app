@@ -344,10 +344,10 @@ class _HomeViewState extends State<_HomeView> {
           ),
         ),
         if (facilities.isEmpty)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Text(
-              'No location selected.',
+              _nearbyEmptyMessage(),
               style: TextStyle(
                 color: Colors.black54,
                 fontSize: 13,
@@ -365,6 +365,16 @@ class _HomeViewState extends State<_HomeView> {
           ),
       ],
     );
+  }
+
+  String _nearbyEmptyMessage() {
+    if (_selectedLocation == _noLocationSelectedLabel) {
+      return 'No location selected.';
+    }
+    if (_isResolvingCurrentLocation) {
+      return 'Detecting your current location...';
+    }
+    return 'No nearby facilities found for the selected location.';
   }
 
   Widget _buildRecentActivities(BuildContext context) {
@@ -431,17 +441,12 @@ class _HomeViewState extends State<_HomeView> {
   }
 
   List<Facility> _mapFacilitiesByLocation(List<Facility> facilities) {
-    if (_useCurrentLocation) {
-      if (_facilityDistancesInMeters.isEmpty) {
-        return const [];
-      }
-
+    if (_facilityDistancesInMeters.isNotEmpty) {
       final nearbyFacilities = facilities
           .where((facility) => _facilityDistancesInMeters.containsKey(facility.id))
           .toList()
         ..sort((a, b) => _facilityDistancesInMeters[a.id]!
             .compareTo(_facilityDistancesInMeters[b.id]!));
-
       return nearbyFacilities;
     }
 
@@ -552,19 +557,21 @@ class _HomeViewState extends State<_HomeView> {
     if (!mounted || action == null) return;
     if (action == _LocationPickerAction.previousAddress &&
         _typedOtherLocation != null) {
-      _selectFixedLocation(_typedOtherLocation!);
+      await _selectFixedLocation(_typedOtherLocation!);
       return;
     }
     await _showManualLocationDialog();
   }
 
-  void _selectFixedLocation(String location) {
+  Future<void> _selectFixedLocation(String location) async {
     setState(() {
       _useCurrentLocation = false;
       _currentPosition = null;
       _facilityDistancesInMeters.clear();
       _selectedLocation = location;
     });
+
+    await _resolveFacilityDistancesFromQuery(location);
   }
 
   Future<void> _showManualLocationDialog() async {
@@ -676,6 +683,8 @@ class _HomeViewState extends State<_HomeView> {
       _typedOtherLocation = '$address, $postcode';
       _selectedLocation = _typedOtherLocation!;
     });
+    await _resolveFacilityDistancesFromQuery(_typedOtherLocation!);
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Location updated successfully.')),
@@ -772,7 +781,41 @@ class _HomeViewState extends State<_HomeView> {
 
   Future<void> _resolveFacilityDistancesFromCurrentLocation() async {
     final currentPosition = _currentPosition;
-    if (currentPosition == null || !mounted) return;
+    if (currentPosition == null) return;
+
+    await _resolveFacilityDistancesFromCoordinates(
+      latitude: currentPosition.latitude,
+      longitude: currentPosition.longitude,
+    );
+  }
+
+  Future<void> _resolveFacilityDistancesFromQuery(String query) async {
+    if (!mounted) return;
+
+    try {
+      final locations = await locationFromAddress(query);
+      if (locations.isEmpty) {
+        if (!mounted) return;
+        setState(() => _facilityDistancesInMeters.clear());
+        return;
+      }
+
+      final selectedLocation = locations.first;
+      await _resolveFacilityDistancesFromCoordinates(
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _facilityDistancesInMeters.clear());
+    }
+  }
+
+  Future<void> _resolveFacilityDistancesFromCoordinates({
+    required double latitude,
+    required double longitude,
+  }) async {
+    if (!mounted) return;
 
     final facilities = context.read<FacilityViewModel>().filteredFacilities;
     final Map<String, double> distances = {};
@@ -784,8 +827,8 @@ class _HomeViewState extends State<_HomeView> {
 
         final facilityLocation = locations.first;
         final distance = Geolocator.distanceBetween(
-          currentPosition.latitude,
-          currentPosition.longitude,
+          latitude,
+          longitude,
           facilityLocation.latitude,
           facilityLocation.longitude,
         );
